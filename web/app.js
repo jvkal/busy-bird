@@ -6,6 +6,7 @@
 
 import { wireCurve, hubCurve, glideProgress } from './flight-path.mjs';
 import { MAGPIE_PATH } from './magpie-path.mjs';
+import { SKINS, SKIN_ORDER, courierSkin, nextSkin } from './skins.mjs';
 
 const NS = 'http://www.w3.org/2000/svg';
 const $ = (id) => document.getElementById(id);
@@ -24,21 +25,9 @@ const laneY = (lane) => {
 const BAD = '#ff6b6b';
 const PALETTE = ['#a18bff', '#5be39a', '#61d7e7', '#ffb86b', '#ff7eb6', '#9ecbff', '#ffe066', '#7bd88f'];
 
-// The same flying magpie magpie's own Routing page draws: facing right,
-// wings beating from the shoulder, banked into the turn.
-const FLIER =
-  '<g class="rt-lift"><g transform="scale(1.2) translate(-6.5 3.2)">'
-  + '<path class="wing far" d="M-14.5 -3.4C-16.5 -9.5 -14.2 -15 -8.6 -18.6C-9.4 -12.6 -9.6 -7.4 -9.2 -3.2Z"/>'
-  + '<path class="tail" d="M-31.5 3.1L-18.6 -1.8L-17.4 1.2L-30.8 4.6Z"/>'
-  + '<ellipse class="body" cx="-12.2" cy="-1.4" rx="7.6" ry="3.9"/>'
-  + '<ellipse class="belly" cx="-12.8" cy="0.4" rx="4.3" ry="1.6"/>'
-  + '<circle class="body" cx="-4.9" cy="-3.7" r="3.1"/>'
-  + '<path class="body" d="M-2.3 -4.8L1.4 -3.3L-2.3 -2.2Z"/>'
-  + '<g class="wing near"><path d="M-15.6 -3.2C-17.8 -10.2 -15.2 -16.4 -8.4 -20.4C-9.3 -13.6 -9.4 -7.8 -8.8 -2.8Z"/>'
-  + '<path class="bar" d="M-14.6 -5.6C-15.4 -10.4 -13.8 -14.4 -10.4 -17.2"/></g>'
-  + '</g></g>';
-
 // ── helpers ─────────────────────────────────────────────────────────────────
+
+const currentSkin = () => courierSkin(state.settings?.courier);
 
 function svgEl(name, attrs = {}) {
   const el = document.createElementNS(NS, name);
@@ -379,11 +368,11 @@ function ensureIslandBird() {
   const g = svgEl('g', { class: 'flying-bird isl-bird' });
   g.style.opacity = '0';
   const flier = svgEl('g', { class: 'flier' });
-  flier.innerHTML = FLIER;
+  flier.innerHTML = SKINS[currentSkin()].build();
   const packet = svgEl('circle', { class: 'packet', r: 2 });
   g.append(flier, packet);
   islBirds.append(g);
-  islBird = { g, flier, packet, visible: false };
+  islBird = { g, flier, packet, visible: false, skin: currentSkin() };
   return islBird;
 }
 
@@ -442,6 +431,10 @@ async function islandBirdLoop() {
     const group = state.groups.get(groupKeyOf(route));
     const accent = group ? accentOf(group) : '#a18bff';
     bird.g.style.setProperty('--agent', accent);
+    if (bird.skin !== currentSkin()) {
+      bird.skin = currentSkin();
+      bird.flier.innerHTML = SKINS[bird.skin].build();
+    }
     if (!bird.visible) {
       // appear on the wire, just off the agent's icon
       bird.g.setAttribute('transform', 'translate(42 19.8) scale(0.4)');
@@ -738,7 +731,7 @@ function startFlight(route) {
   bird.style.setProperty('--agent', color);
   bird.style.opacity = '0';
   const flier = svgEl('g', { class: 'flier' });
-  flier.innerHTML = FLIER;
+  flier.innerHTML = SKINS[currentSkin()].build();
   const packet = svgEl('circle', { class: 'packet', r: 3, cx: 0, cy: 0 });
   bird.append(flier, packet);
   const guides = svgEl('g');
@@ -1029,37 +1022,100 @@ $('opSlider').addEventListener('input', (event) => {
 
 $('resetPlace').addEventListener('click', () => window.bird?.resetPlace());
 
-// ── drag from the top strip, resize from the edges ─────────────────────────
+// ── drag from the top strip; the mini dots switch skin and open stats ──────
 
 pill.addEventListener('click', () => window.bird?.periodNext());
 
 const topbar = $('topbar');
 topbar.addEventListener('mousedown', (event) => {
-  if (event.target.closest('.pill') || event.target.closest('.gear')) return;
+  if (event.target.closest('.pill') || event.target.closest('.gear') || event.target.closest('.mini-dot')) return;
   event.preventDefault();
   window.bird?.dragStart();
 });
 
-for (const band of document.querySelectorAll('.rz')) {
-  band.addEventListener('mousedown', (event) => {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    window.bird?.resizeStart(band.dataset.dir);
-  });
+const skinDot = $('skinDot');
+skinDot.addEventListener('click', () => {
+  const next = nextSkin(state.settings?.courier);
+  state.settings = { ...state.settings, courier: next };
+  skinDot.textContent = SKINS[next].emoji;
+  skinDot.title = `换装：${SKINS[next].label}`;
+  savePatch({ courier: next });
+});
+
+const statsCard = $('statsCard');
+function toggleStats(open) {
+  statsCard.classList.toggle('open', open);
+  if (open) {
+    window.bird?.stats();
+    refreshSurface();
+  }
+  reportHitAreas();
 }
+const statDot = $('statDot');
+statDot.addEventListener('click', () => toggleStats(!statsCard.classList.contains('open')));
+$('statsClose').addEventListener('click', () => toggleStats(false));
 
 window.addEventListener('mouseup', () => {
   window.bird?.dragEnd();
-  window.bird?.resizeEnd();
 });
 
-// Esc is the emergency brake for drags and resizes gone wrong.
+// Esc closes overlays and is the emergency brake for drags gone wrong.
 window.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    window.bird?.resizeEnd();
-    window.bird?.dragEnd();
-  }
+  if (event.key !== 'Escape') return;
+  window.bird?.dragEnd();
+  if (panel.classList.contains('open')) togglePanel(false);
+  if (statsCard.classList.contains('open')) toggleStats(false);
+});
+
+// ── the stats block: today's calls, totals, cost, speed, sessions, 24h chart ──
+
+function renderStats(data) {
+  if (!data) return;
+  const today = data.today || {};
+  const all = data.all || {};
+  $('stCalls').textContent = fmtNum(today.calls);
+  $('stTotal').textContent = fmtNum(all.calls);
+  $('stCost').textContent = today.cost != null ? `$${Number(today.cost).toFixed(2)}` : '—';
+  const speed = Number(today.decode_ms) > 0
+    ? Math.round((Number(today.decode_out) / Number(today.decode_ms)) * 1000)
+    : 0;
+  $('stSpeed').textContent = speed ? `${fmtNum(speed)} tok/s` : '—';
+  const sessions = new Set([...state.routes.values()]
+    .map(r => r.conv || r.session || '').filter(Boolean));
+  $('stSess').textContent = sessions.size || '—';
+  drawChart(data.hourly);
+}
+
+function fmtNum(value) {
+  const n = Number(value) || 0;
+  return n >= 1000 ? fmtTokens(n) : String(Math.round(n));
+}
+
+function drawChart(hourly) {
+  const chart = $('chart');
+  if (!chart) return;
+  chart.innerHTML = '';
+  const series = (hourly && hourly.series) || [];
+  const values = series.map(s => Number(s.calls) || 0);
+  const max = Math.max(...values, 1);
+  series.forEach((point, i) => {
+    const h = (Number(point.calls) || 0) > 0
+      ? Math.max(3, ((Number(point.calls) || 0) / max) * 44)
+      : 1.5;
+    const bar = svgEl('rect', {
+      class: `chart-bar${(Number(point.calls) || 0) > 0 ? ' on' : ''}`,
+      x: 3 + i * 9.75, y: 50 - h, width: 7, height: h, rx: 1.5,
+    });
+    const tip = svgEl('title');
+    tip.textContent = `${point.label}\n${point.calls || 0} 次`;
+    bar.append(tip);
+    chart.append(bar);
+  });
+}
+
+window.bird?.onStats((data) => {
+  if (!statsCard.classList.contains('open')) return;
+  renderStats(data);
 });
 
 // Dragging the island itself undocks it from the screen top.

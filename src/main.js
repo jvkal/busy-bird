@@ -37,6 +37,8 @@ let settingsPath = null;
 let logPath = null;
 let trace = null;
 let connection = { online: false, detail: '正在连接' };
+let statsCache = null;
+let statsAt = 0;
 let usageData = null;
 let client = null;
 let usageTimer = null;
@@ -285,7 +287,7 @@ function setHoverInteractive(value, kind = null) {
 function watchHover() {
   clearInterval(hoverTimer);
   hoverTimer = setInterval(() => {
-    if (!win || win.isDestroyed() || !win.isVisible() || panelOpen || dragState || resizeState) return;
+    if (!win || win.isDestroyed() || !win.isVisible() || panelOpen || dragState) return;
     const point = screen.getCursorScreenPoint();
     const bounds = win.getBounds();
     // Docked as the Dynamic Island: hovering the pill drops the card down,
@@ -488,81 +490,22 @@ function setDocked(value) {
   refreshTrayMenu();
 }
 
-// ── resize from the edges and corners ───────────────────────────────────────
+// ── size presets: the card keeps three fixed shapes ─────────────────────────
 
-let resizeState = null;
-
-function startResize(direction = 'se') {
-  if (!win || win.isDestroyed() || resizeState || dragState) return;
-  const dir = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].includes(direction) ? direction : 'se';
-  const point = screen.getCursorScreenPoint();
-  const bounds = win.getBounds();
-  const area = screen.getDisplayNearestPoint(point).workArea;
-  win.setIgnoreMouseEvents(false);
-  win.setFocusable(true);
-  win.focus();
-  const state = {
-    dir,
-    pointerX: point.x,
-    pointerY: point.y,
-    x: bounds.x,
-    y: bounds.y,
-    width: bounds.width,
-    height: bounds.height,
-    timer: null,
-    max: null,
-  };
-  state.maxW = dir.includes('e') ? Math.max(bounds.width, area.x + area.width - bounds.x - 8)
-    : Math.max(bounds.width, bounds.x + bounds.width - area.x - 8);
-  state.maxH = dir.includes('s') ? Math.max(bounds.height, area.y + area.height - bounds.y - 8)
-    : Math.max(bounds.height, bounds.y + bounds.height - area.y - 8);
-  const minHeight = heightForWidth(MIN_WIDTH);
-  state.timer = setInterval(() => {
-    if (!win || win.isDestroyed()) {
-      endResize();
-      return;
-    }
-    const now = screen.getCursorScreenPoint();
-    const dx = now.x - state.pointerX;
-    const dy = now.y - state.pointerY;
-    let width = state.width;
-    let height = state.height;
-    let x = state.x;
-    let y = state.y;
-    if (dir.includes('e')) width = state.width + dx;
-    else if (dir.includes('w')) width = state.width - dx;
-    if (dir.includes('s')) height = state.height + dy;
-    else if (dir.includes('n')) height = state.height - dy;
-    // The canvas keeps its shape, so one dimension drives the other.
-    if (dir.includes('e') || dir.includes('w')) height = heightForWidth(width);
-    else width = widthForHeight(height);
-    width = Math.max(MIN_WIDTH, Math.min(state.maxW, width));
-    height = Math.max(minHeight, Math.min(state.maxH, height));
-    if (dir.includes('w')) x = state.x + state.width - width;
-    if (dir.includes('n')) y = state.y + state.height - height;
-    win.setBounds({ x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) }, false);
-    settings.width = Math.round(width);
-    settings.height = Math.round(height);
-    settings.left = Math.round(x);
-    settings.top = Math.round(y);
-  }, 16);
-  state.max = setTimeout(endResize, 15000);
-  resizeState = state;
-}
-
-function endResize() {
-  if (!resizeState) return;
-  clearInterval(resizeState.timer);
-  clearTimeout(resizeState.max);
-  resizeState = null;
+function setSize(width) {
+  settings.width = Math.min(Math.max(Number(width) || WIDTH, MIN_WIDTH), 4000);
+  settings.height = heightForWidth(settings.width);
+  if (settings.docked) {
+    const area = screen.getPrimaryDisplay().workArea;
+    settings.left = area.x + Math.round((area.width - settings.width) / 2);
+    settings.top = area.y;
+  }
   saveSettings();
   if (win && !win.isDestroyed()) {
-    win.setIgnoreMouseEvents(true, { forward: true });
-    win.setFocusable(false);
-    win.blur();
+    win.setBounds({ x: settings.left, y: settings.top, width: settings.width, height: settings.height }, false);
   }
-  hoverInteractive = false;
-  hoverKind = null;
+  send('bird:settings', publicSettings());
+  refreshTrayMenu();
 }
 
 // ── tray ────────────────────────────────────────────────────────────────────
@@ -598,6 +541,12 @@ function refreshTrayMenu() {
         refreshUsage();
         send('bird:settings', publicSettings());
       },
+    })) },
+    { label: '尺寸', submenu: [[220, '小'], [260, '中'], [320, '大']].map(([width, label]) => ({
+      label: `${label}（宽 ${width}）`,
+      type: 'radio',
+      checked: Number(settings.width) === width,
+      click: () => setSize(width),
     })) },
     { label: '灵动岛模式（吸附屏幕顶部）', type: 'checkbox', checked: Boolean(settings.docked), click: () => setDocked(!settings.docked) },
     { label: '不透明度', submenu: [0.2, 0.3, 0.4, 0.5, 0.7, 1].map((value) => ({
@@ -741,10 +690,32 @@ ipcMain.on('bird:ready', () => {
   if (usageData) send('bird:usage', usageData);
 });
 ipcMain.on('bird:hit-areas', (_event, areas) => { hitAreas = normalizeHitAreas(areas); });
-ipcMain.on('bird:drag-start', startDrag);
-ipcMain.on('bird:drag-end', endDrag);
-ipcMain.on('bird:resize-start', (_event, direction) => startResize(direction));
-ipcMain.on('bird:resize-end', endResize);
+ipcMain.on('bird:stats', async () => {
+  if (statsCache && Date.now() - statsAt < 60000) {
+    send('bird:stats', statsCache);
+    return;
+  }
+  const base = resolveGateway();
+  const grab = async (query) => {
+    try {
+      const response = await fetch(`${base}/v1/magpie/usage?${query}`, {
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+      return response.ok ? await response.json() : null;
+    } catch {
+      return null;
+    }
+  };
+  const [today, all, hourly] = await Promise.all([
+    grab('period=today'),
+    grab('period=all'),
+    grab('period=today&bucket=hour'),
+  ]);
+  statsCache = { today, all, hourly };
+  statsAt = Date.now();
+  send('bird:stats', statsCache);
+});
 ipcMain.on('bird:panel', (_event, open) => {
   panelOpen = Boolean(open);
   if (!win || win.isDestroyed()) return;

@@ -10,8 +10,26 @@
   <header class="topbar" id="topbar">
     <span class="dot" id="dot" title="正在连接"></span>
     <button class="pill hot" id="pill" title="单击切换时间窗">— tok</button>
+    <button class="mini-dot hot" id="skinDot" title="换装：小鸟">🐦</button>
+    <button class="mini-dot hot" id="statDot" title="用量统计">📊</button>
     <button class="gear hot" id="gear" title="设置">⚙</button>
   </header>
+
+  <div class="panel" id="statsCard">
+    <div class="panel-head">
+      <span>用量统计</span>
+      <button class="panel-close" id="statsClose" title="关闭">✕</button>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><span class="stat-v" id="stCalls">—</span><span class="stat-k">今日调用</span></div>
+      <div class="stat"><span class="stat-v" id="stTotal">—</span><span class="stat-k">请求总数</span></div>
+      <div class="stat"><span class="stat-v" id="stCost">—</span><span class="stat-k">费用参考</span></div>
+      <div class="stat"><span class="stat-v" id="stSpeed">—</span><span class="stat-k">输出速度</span></div>
+      <div class="stat"><span class="stat-v" id="stSess">—</span><span class="stat-k">会话数</span></div>
+    </div>
+    <svg id="chart" viewBox="0 0 240 52" preserveAspectRatio="none"></svg>
+    <div class="chart-cap">近 24 小时 · 每小时调用量</div>
+  </div>
 
   <div class="panel" id="panel">
     <div class="panel-head">
@@ -45,14 +63,6 @@
       <text class="isl-text" id="islText" x="115" y="14" text-anchor="middle"></text>
     </svg>
   </div>
-
-  <div class="rz s" data-dir="s"></div>
-  <div class="rz e" data-dir="e"></div>
-  <div class="rz w" data-dir="w"></div>
-  <div class="rz ne" data-dir="ne"></div>
-  <div class="rz nw" data-dir="nw"></div>
-  <div class="rz se" data-dir="se"></div>
-  <div class="rz sw" data-dir="sw"></div>
 
   <svg id="sky" viewBox="0 0 260 160" aria-hidden="true">
     <defs>
