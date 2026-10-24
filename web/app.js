@@ -423,7 +423,7 @@ function islFly(fromX, toX, ms) {
       const t = Math.max(0, Math.min(1, (now - started) / ms));
       const k = glideProgress(t);
       const x = fromX + (toX - fromX) * k;
-      const y = 21 - Math.sin(k * Math.PI) * 4;
+      const y = 19.8 - Math.sin(k * Math.PI) * 4;
       const flip = toX < fromX ? -1 : 1;
       islBird.g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${flip * 0.4} 0.4)`);
       if (t < 1) requestAnimationFrame(step); else resolve();
@@ -441,13 +441,15 @@ function islWait(predicate) {
 }
 
 function islPerch() {
+  // The perch is the dashed wire itself, just right of the agent's icon —
+  // a bird on a wire, never covering the brand.
   islBird.g.classList.add('perched');
-  islBird.g.setAttribute('transform', 'translate(34 3) scale(0.4)');
+  islBird.g.setAttribute('transform', 'translate(42 19.8) scale(0.4)');
 }
 
-// The island's own courier: it lives on the left brand chip, flies empty to
-// the vendor when a request starts, tucks in, and rides home with the golden
-// answer once magpie is done.
+// The island's own courier: it lives on the wire, flies empty to the vendor
+// when a request starts, tucks in, and rides home with the golden answer
+// once magpie is done.
 async function islandBirdLoop() {
   const bird = ensureIslandBird();
   islPerch();
@@ -464,7 +466,7 @@ async function islandBirdLoop() {
     bird.g.style.setProperty('--agent', accent);
     bird.g.classList.remove('perched');
     bird.flier.style.opacity = '1';
-    await islFly(38, 192, 1100);
+    await islFly(42, 192, 1100);
     // tucked into the vendor chip: the request glows there while waiting
     bird.flier.style.opacity = '0';
     islPacket.style.setProperty('--c', accent);
@@ -478,7 +480,7 @@ async function islandBirdLoop() {
     islPacket.style.opacity = '0';
     bird.g.classList.add('back');
     bird.flier.style.opacity = '1';
-    await islFly(192, 38, 1500);
+    await islFly(192, 42, 1500);
     bird.g.classList.remove('back');
     islPerch();
   }
