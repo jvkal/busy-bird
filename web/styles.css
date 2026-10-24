@@ -234,8 +234,8 @@ button.mini:hover { background: rgba(255, 255, 255, 0.14); }
 /* ── chips: glass cards with a colored avatar dot and a burrow ─────────── */
 
 .chip-box {
-  fill: rgba(255, 255, 255, 0.055);
-  stroke: rgba(255, 255, 255, 0.20);
+  fill: rgba(255, 255, 255, 0.07);
+  stroke: rgba(255, 255, 255, 0.22);
   stroke-width: 1;
 }
 
@@ -244,7 +244,11 @@ button.mini:hover { background: rgba(255, 255, 255, 0.14); }
   filter: drop-shadow(0 1px 6px color-mix(in srgb, var(--c, #a18bff) 30%, transparent));
 }
 
-.chip-dot { fill: var(--c, #a18bff); }
+.chip-dot {
+  fill: var(--c, #a18bff);
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 0.7;
+}
 
 .chip-dot.pulse { animation: packetWait 1.3s ease-in-out infinite; }
 

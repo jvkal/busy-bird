@@ -108,7 +108,10 @@ function buildHub() {
   });
   const glyph = svgEl('g', { transform: `translate(${(HUB.left + HUB.right) / 2 - 15} ${HUB.y - 15}) scale(0.68)` });
   glyph.append(hubGlyph);
-  hubLayer.append(hubBox, glyph);
+  const glow = svgEl('circle', {
+    class: 'hub-glow', cx: (HUB.left + HUB.right) / 2, cy: HUB.y, r: 30, fill: 'url(#glowGrad)',
+  });
+  hubLayer.append(glow, hubBox, glyph);
   // The perch bird stands on the hub card's top edge, facing right.
   perch.setAttribute('transform', `translate(${HUB.right - 4} ${HUB.y - 19}) scale(0.5)`);
   perch.style.display = 'none';
@@ -299,7 +302,7 @@ function flightPoint(flight, distance) {
   return path.getPointAtLength(reverse ? length - remaining : remaining);
 }
 
-function poseBird(flight, p, vx, vy, scale = 0.62) {
+function poseBird(flight, p, vx, vy, scale = 0.72) {
   const flip = vx < 0 ? -1 : 1;
   const aim = Math.max(-22, Math.min(22, Math.atan2(vy, Math.abs(vx) || 1) * 180 / Math.PI));
   if (flight.aim === null || flight.aimFlip !== (vx < 0)) flight.aim = aim;
@@ -321,7 +324,7 @@ function ripple() {
   }, 700);
 }
 
-function flyTo(flight, spec, ms, crossAt = -1) {
+function flyTo(flight, spec, ms) {
   return new Promise((resolve) => {
     const started = performance.now();
     let crossed = false;
@@ -330,9 +333,12 @@ function flyTo(flight, spec, ms, crossAt = -1) {
       if (!buildLegs(flight, spec)) { resolve(); return; }
       const progress = Math.max(0, Math.min(1, (now - started) / ms));
       const distance = glideProgress(progress) * flight.length;
-      if (!crossed && crossAt >= 0 && distance >= crossAt) {
-        crossed = true;
-        ripple();
+      if (!crossed) {
+        const crossAt = crossingDistance(spec, flight);
+        if (crossAt >= 0 && distance >= crossAt) {
+          crossed = true;
+          ripple();
+        }
       }
       const p = flightPoint(flight, distance);
       const p0 = flightPoint(flight, distance - 3);
@@ -361,9 +367,9 @@ function setPose(flight, pose) {
 function holdAt(flight, where) {
   setPose(flight, `hold-${where}`);
   if (where === 'hub') {
-    flight.bird.setAttribute('transform', `translate(${HUB.left + 2} ${HUB.y}) scale(0.62)`);
+    flight.bird.setAttribute('transform', `translate(${HUB.left + 2} ${HUB.y}) scale(0.72)`);
   } else {
-    flight.bird.setAttribute('transform', `translate(${ACCOUNT_X} ${laneY(flight.lane)}) scale(0.62)`);
+    flight.bird.setAttribute('transform', `translate(${ACCOUNT_X} ${laneY(flight.lane)}) scale(0.72)`);
   }
 }
 
@@ -372,20 +378,24 @@ const LEGS_TO_ACCOUNT = [{ path: 'through' }, { path: 'out' }];
 const LEGS_RETURN = [{ path: 'out', reverse: true }, { path: 'through', reverse: true }, { path: 'in', reverse: true }];
 const LEGS_BACK_TO_HUB = [{ path: 'out', reverse: true }];
 
-function crossingOf(spec) {
-  if (spec === LEGS_TO_ACCOUNT) {
-    return flight => flight.legs[0].length + flight.legs[1].length / 2;
+// The crossing of the hub happens halfway through the through-leg. Read
+// lazily, AFTER the legs are built: the previous spec's legs are stale here.
+function crossingDistance(spec, flight) {
+  if (spec === LEGS_TO_ACCOUNT || spec === LEGS_RETURN) {
+    return flight.legs[0].length + flight.legs[1].length / 2;
   }
-  if (spec === LEGS_RETURN) {
-    return flight => flight.legs[0].length + flight.legs[1].length / 2;
-  }
-  return null;
+  return -1;
 }
 
-const TRAVEL_MS = { [LEGS_TO_HUB]: 720, [LEGS_TO_ACCOUNT]: 920, [LEGS_RETURN]: 1350, [LEGS_BACK_TO_HUB]: 620 };
+const TRAVEL_MS = new Map([
+  [LEGS_TO_HUB, 720],
+  [LEGS_TO_ACCOUNT, 920],
+  [LEGS_RETURN, 1350],
+  [LEGS_BACK_TO_HUB, 620],
+]);
 
 function travel(flight, spec) {
-  return flyTo(flight, spec, TRAVEL_MS[spec] || 900, crossingOf(spec) ? crossingOf(spec)(flight) : -1);
+  return flyTo(flight, spec, TRAVEL_MS.get(spec) || 900);
 }
 
 function waitFor(flight, predicate) {
@@ -425,7 +435,7 @@ function startFlight(route) {
   bird.style.opacity = '0';
   const flier = svgEl('g', { class: 'flier' });
   flier.innerHTML = FLIER;
-  const packet = svgEl('circle', { class: 'packet', r: 2.6, cx: 0, cy: 0 });
+  const packet = svgEl('circle', { class: 'packet', r: 3, cx: 0, cy: 0 });
   bird.append(flier, packet);
   const guides = svgEl('g');
   const paths = ['in', 'out', 'through'].map(() => {
@@ -441,7 +451,11 @@ function startFlight(route) {
   };
   flights.set(id, flight);
   window.requestAnimationFrame(() => { bird.style.opacity = '1'; });
-  runFlight(flight);
+  // A thrown playback must not leave an orphan bird on the sky.
+  runFlight(flight).catch((error) => {
+    console.warn('[busy-bird] flight playback failed:', error);
+    dispose(flight);
+  });
 }
 
 async function runFlight(flight) {
@@ -568,7 +582,8 @@ function renderDot() {
 
 function applyOpacity(value) {
   const alpha = Math.min(1, Math.max(0.05, Number(value) || 0.34));
-  document.body.style.background = `rgba(16, 16, 24, ${alpha})`;
+  document.body.style.background = `linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0) 42%), `
+    + `linear-gradient(rgba(16,16,24,${alpha}), rgba(16,16,24,${alpha}))`;
 }
 
 // The main process polls the cursor against these rectangles to decide when
