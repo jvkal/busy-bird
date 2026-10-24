@@ -11,8 +11,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const WIDTH = 300;
-const HEIGHT = 190;
+const WIDTH = 260;
+const HEIGHT = 160;
 const UPDATE_MS = 60 * 1000;
 
 const IS_SHOT = process.argv.find((arg) => arg.startsWith('--shot='));
@@ -34,13 +34,14 @@ let shotTimer = null;
 // ── settings ────────────────────────────────────────────────────────────────
 
 function defaultSettings() {
-  const area = screen.getPrimaryDisplay().workAreaSize;
+  const area = screen.getPrimaryDisplay().workArea;
   return {
     topmost: true,
-    left: Math.max(0, area.width - WIDTH - 40),
-    top: Math.max(0, Math.round(area.height * 0.72)),
+    left: area.x + Math.round((area.width - WIDTH) / 2),
+    top: area.y + Math.round((area.height - HEIGHT) / 2),
     gateway: null,
     usagePeriod: 'today',
+    opacity: 0.34,
   };
 }
 
@@ -218,6 +219,14 @@ function clampBounds(x, y) {
   };
 }
 
+// Click-through is decided by main-side cursor polling against the hit
+// areas the renderer reports: forwarded mouse-move alone is too flaky to
+// trust with waking a click-through window up.
+let hoverInteractive = false;
+let hoverKind = null;
+let hitAreas = { controls: [], dragTop: 0, dragBottom: 26 };
+let hoverTimer = null;
+
 function applyClickThrough(ignore) {
   if (!win || win.isDestroyed()) return;
   if (ignore) {
@@ -227,6 +236,47 @@ function applyClickThrough(ignore) {
     win.setIgnoreMouseEvents(false);
     win.setFocusable(true);
   }
+}
+
+function setHoverInteractive(value, kind = null) {
+  if (!win || win.isDestroyed()) return;
+  if (hoverInteractive === value && hoverKind === kind) return;
+  hoverInteractive = value;
+  hoverKind = value ? kind : null;
+  applyClickThrough(!value);
+}
+
+function watchHover() {
+  clearInterval(hoverTimer);
+  hoverTimer = setInterval(() => {
+    if (!win || win.isDestroyed() || !win.isVisible() || dragState) return;
+    const point = screen.getCursorScreenPoint();
+    const bounds = win.getBounds();
+    const contains = (rect) => point.x >= bounds.x + rect.x && point.x <= bounds.x + rect.x + rect.width
+      && point.y >= bounds.y + rect.y && point.y <= bounds.y + rect.y + rect.height;
+    const onControl = hitAreas.controls.some(contains);
+    const onTopBar = point.x >= bounds.x && point.x <= bounds.x + bounds.width
+      && point.y >= bounds.y + hitAreas.dragTop && point.y <= bounds.y + hitAreas.dragBottom;
+    setHoverInteractive(onControl || onTopBar, onControl ? 'control' : 'drag');
+  }, 70);
+}
+
+function normalizeHitAreas(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const controls = (Array.isArray(source.controls) ? source.controls : []).flatMap((rect) => {
+    if (!rect || typeof rect !== 'object') return [];
+    const [x, y, width, height] = ['x', 'y', 'width', 'height'].map((key) => Number(rect[key]));
+    return [x, y, width, height].every(Number.isFinite) && width > 0 && height > 0
+      ? [{ x, y, width, height }]
+      : [];
+  });
+  const top = Number(source.dragTop);
+  const bottom = Number(source.dragBottom);
+  return {
+    controls,
+    dragTop: Number.isFinite(top) ? top : 0,
+    dragBottom: Number.isFinite(bottom) && bottom > top ? bottom : 26,
+  };
 }
 
 function createWindow() {
@@ -269,13 +319,6 @@ function createWindow() {
   win.once('ready-to-show', () => win.showInactive());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
-  win.on('moved', () => {
-    const [x, y] = win.getPosition();
-    settings.left = x;
-    settings.top = y;
-    saveSettings();
-  });
-
   win.on('close', (event) => {
     if (quitting) return;
     event.preventDefault();
@@ -285,25 +328,81 @@ function createWindow() {
 
 // ── drag from the renderer ──────────────────────────────────────────────────
 
-let dragTimer = null;
+let dragState = null;
 
 function startDrag() {
-  if (!win || win.isDestroyed()) return;
-  const cursor = screen.getCursorScreenPoint();
+  if (!win || win.isDestroyed() || dragState) return;
+  const point = screen.getCursorScreenPoint();
   const [x, y] = win.getPosition();
-  const offsetX = cursor.x - x;
-  const offsetY = cursor.y - y;
-  clearInterval(dragTimer);
-  dragTimer = setInterval(() => {
-    const point = screen.getCursorScreenPoint();
-    const bounds = clampBounds(point.x - offsetX, point.y - offsetY);
-    win.setPosition(bounds.x, bounds.y);
+  win.setIgnoreMouseEvents(false);
+  win.setFocusable(true);
+  win.focus();
+  const state = {
+    pointerX: point.x,
+    pointerY: point.y,
+    windowX: x,
+    windowY: y,
+    timer: null,
+    max: null,
+  };
+  state.timer = setInterval(() => {
+    if (!win || win.isDestroyed()) {
+      endDrag();
+      return;
+    }
+    const now = screen.getCursorScreenPoint();
+    let nx = Math.round(state.windowX + now.x - state.pointerX);
+    let ny = Math.round(state.windowY + now.y - state.pointerY);
+    // Snap to the screen's centerlines: the perch likes the middle of the
+    // desktop, and the guides in the renderer say when it took.
+    const area = screen.getDisplayNearestPoint(now).workArea;
+    const centerX = area.x + Math.round((area.width - WIDTH) / 2);
+    const centerY = area.y + Math.round((area.height - HEIGHT) / 2);
+    const snapX = Math.abs(nx - centerX) <= 20;
+    const snapY = Math.abs(ny - centerY) <= 20;
+    if (snapX) nx = centerX;
+    if (snapY) ny = centerY;
+    if (snapX !== state.snapX || snapY !== state.snapY) {
+      state.snapX = snapX;
+      state.snapY = snapY;
+      send('bird:snap', { x: snapX, y: snapY });
+    }
+    win.setPosition(nx, ny);
   }, 16);
+  // A lost mouseup must not keep the window chasing the cursor forever.
+  state.max = setTimeout(endDrag, 15000);
+  dragState = state;
 }
 
 function endDrag() {
-  clearInterval(dragTimer);
-  dragTimer = null;
+  if (!dragState) return;
+  clearInterval(dragState.timer);
+  clearTimeout(dragState.max);
+  const wasSnapped = dragState.snapX || dragState.snapY;
+  dragState = null;
+  send('bird:snap', { x: false, y: false });
+  if (win && !win.isDestroyed()) {
+    const [x, y] = win.getPosition();
+    settings.left = x;
+    settings.top = y;
+    saveSettings();
+    if (!wasSnapped) {
+      win.setIgnoreMouseEvents(true, { forward: true });
+      win.setFocusable(false);
+      win.blur();
+    } else {
+      // Keep the pointer for a beat on a snap, so the guides are seen.
+      setTimeout(() => {
+        if (win && !win.isDestroyed() && !dragState) {
+          win.setIgnoreMouseEvents(true, { forward: true });
+          win.setFocusable(false);
+          win.blur();
+        }
+      }, 450);
+    }
+  }
+  hoverInteractive = false;
+  hoverKind = null;
 }
 
 // ── tray ────────────────────────────────────────────────────────────────────
@@ -337,6 +436,16 @@ function refreshTrayMenu() {
         settings.usagePeriod = period;
         saveSettings();
         refreshUsage();
+        send('bird:settings', publicSettings());
+      },
+    })) },
+    { label: '不透明度', submenu: [0.2, 0.3, 0.4, 0.5, 0.7, 1].map((value) => ({
+      label: `${Math.round(value * 100)}%`,
+      type: 'radio',
+      checked: Math.abs((Number(settings.opacity) || 0.34) - value) < 0.02,
+      click: () => {
+        settings.opacity = value;
+        saveSettings();
         send('bird:settings', publicSettings());
       },
     })) },
@@ -451,6 +560,7 @@ function publicSettings() {
     topmost: Boolean(settings.topmost),
     usagePeriod: settings.usagePeriod,
     gateway: resolveGateway(),
+    opacity: Math.min(1, Math.max(0.05, Number(settings.opacity) || 0.34)),
   };
 }
 
@@ -464,7 +574,7 @@ ipcMain.on('bird:ready', () => {
   send('bird:connection', connection);
   if (usageData) send('bird:usage', usageData);
 });
-ipcMain.on('bird:hover', (_event, interactive) => applyClickThrough(Boolean(interactive)));
+ipcMain.on('bird:hit-areas', (_event, areas) => { hitAreas = normalizeHitAreas(areas); });
 ipcMain.on('bird:drag-start', startDrag);
 ipcMain.on('bird:drag-end', endDrag);
 ipcMain.on('bird:period-next', () => {
@@ -503,6 +613,7 @@ if (!gotLock) {
       client.start();
       startUsageTimer();
     }
+    watchHover();
 
     if (IS_SHOT) {
       const target = IS_SHOT.slice('--shot='.length);
@@ -524,6 +635,7 @@ if (!gotLock) {
     quitting = true;
     clearInterval(aliveTimer);
     clearInterval(usageTimer);
+    clearInterval(hoverTimer);
     clearTimeout(shotTimer);
     if (client) client.stop();
   });

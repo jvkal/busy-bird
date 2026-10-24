@@ -251,6 +251,36 @@ body {
 
 .perched.sleep { opacity: 0.45; }
 
+/* ── center-snap guides, shown while dragging ──────────────────────────── */
+
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  z-index: 4;
+  background: rgba(255, 255, 255, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+body::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+body::after {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+}
+
+body.snap-x::before { opacity: 1; }
+body.snap-y::after { opacity: 1; }
+
 @media (prefers-reduced-motion: reduce) {
   .flying-bird .wing,
   .flying-bird.held .flier,

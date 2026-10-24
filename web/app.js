@@ -9,15 +9,15 @@ import { MAGPIE_PATH } from './magpie-path.mjs';
 const NS = 'http://www.w3.org/2000/svg';
 const $ = (id) => document.getElementById(id);
 
-const HUB = { left: 124, right: 176, y: 90, size: 40 };
-const AGENT_X = 68;
-const ACCOUNT_X = 232;
+const HUB = { left: 106, right: 154, y: 90, size: 34 };
+const AGENT_X = 62;
+const ACCOUNT_X = 198;
 const MAX_LANES = 3;
 // Lanes bunch toward the vertical center as the group count changes, so one
 // quiet request flies a straight line through the hub instead of the top rail.
 const laneY = (lane) => {
   const count = Math.min(Math.max(state.groups.size, 1), MAX_LANES);
-  const positions = count === 1 ? [90] : count === 2 ? [64, 116] : [48, 90, 132];
+  const positions = count === 1 ? [90] : count === 2 ? [66, 114] : [44, 90, 136];
   return positions[Math.min(lane, positions.length - 1)];
 };
 const BAD = '#ff6b6b';
@@ -104,13 +104,13 @@ let hubBox = null;
 function buildHub() {
   hubLayer.innerHTML = '';
   hubBox = svgEl('rect', {
-    class: 'hub-box', x: HUB.left, y: HUB.y - 20, width: HUB.right - HUB.left, height: 40, rx: 9,
+    class: 'hub-box', x: HUB.left, y: HUB.y - 17, width: HUB.right - HUB.left, height: 34, rx: 8,
   });
-  const glyph = svgEl('g', { transform: `translate(${(HUB.left + HUB.right) / 2 - 15} ${HUB.y - 13}) scale(0.68)` });
+  const glyph = svgEl('g', { transform: `translate(${(HUB.left + HUB.right) / 2 - 15} ${HUB.y - 15}) scale(0.68)` });
   glyph.append(hubGlyph);
   hubLayer.append(hubBox, glyph);
   // The perch bird stands on the hub card's top edge, facing right.
-  perch.setAttribute('transform', `translate(${HUB.right - 4} ${HUB.y - 17}) scale(0.5)`);
+  perch.setAttribute('transform', `translate(${HUB.right - 4} ${HUB.y - 19}) scale(0.5)`);
   perch.style.display = 'none';
   birdsLayer.append(perch);
 }
@@ -230,7 +230,7 @@ function chip(lane, color, agentText, accountText, title, agentName) {
 
 // ── flights ─────────────────────────────────────────────────────────────────
 
-const HOLD_HUB = { x: 160, y: 67 };
+const HOLD_HUB = { x: 148, y: 70 };
 
 function anchorsOf(flight) {
   const y = laneY(flight.lane);
@@ -538,12 +538,24 @@ function renderDot() {
 
 // ── wiring ──────────────────────────────────────────────────────────────────
 
-pill.addEventListener('click', () => window.bird?.periodNext());
+function applyOpacity(value) {
+  const alpha = Math.min(1, Math.max(0.05, Number(value) || 0.34));
+  document.body.style.background = `rgba(16, 16, 24, ${alpha})`;
+}
 
-document.addEventListener('mousemove', (event) => {
-  const hot = Boolean(event.target.closest('.topbar'));
-  window.bird?.hover(hot);
-});
+// The main process polls the cursor against these rectangles to decide when
+// the click-through card wakes up and takes the pointer.
+function reportHitAreas() {
+  const rect = pill.getBoundingClientRect();
+  window.bird?.hitAreas({
+    controls: [{ x: rect.x, y: rect.y, width: rect.width, height: rect.height }],
+    dragTop: 0,
+    dragBottom: 26,
+  });
+}
+window.addEventListener('resize', reportHitAreas);
+
+pill.addEventListener('click', () => window.bird?.periodNext());
 
 const topbar = $('topbar');
 topbar.addEventListener('mousedown', (event) => {
@@ -567,11 +579,19 @@ window.bird?.onUsage((usage) => {
 });
 window.bird?.onSettings((settings) => {
   state.settings = settings;
+  applyOpacity(settings.opacity);
   renderPill();
+});
+window.bird?.onSnap(({ x, y }) => {
+  document.body.classList.toggle('snap-x', Boolean(x));
+  document.body.classList.toggle('snap-y', Boolean(y));
 });
 
 buildHub();
+applyOpacity(state.settings?.opacity);
 render();
 renderDot();
 renderPill();
+reportHitAreas();
+window.setTimeout(reportHitAreas, 800);
 window.bird?.ready();
