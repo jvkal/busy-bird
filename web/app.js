@@ -363,16 +363,6 @@ function render() {
         accent, pending ? 'live' : 'line', active,
       ));
     }
-    // a burrow at the wire's end: the courier tucks itself in there to wait.
-    // A merged trip comes back to the same burrow, so there is only one.
-    const inBurrow = burrow(AGENT_X, y);
-    inBurrow.style.setProperty('--c', accent);
-    wires.append(inBurrow);
-    if (!group.merged) {
-      const outBurrow = burrow(ACCOUNT_X, y);
-      outBurrow.style.setProperty('--c', accent);
-      wires.append(outBurrow);
-    }
 
     const count = group.routes.length;
     chips.append(agentCard(group, accent, route, count, active));
@@ -570,16 +560,6 @@ function wire(d, accent, kind, lit) {
 }
 
 const accentOf = group => state.settings?.themeColor || group.color;
-
-// A little burrow at the wire's end: dark hole with an earth rim above it.
-function burrow(x, y) {
-  const g = svgEl('g', { class: 'burrow' });
-  g.append(
-    svgEl('path', { class: 'burrow-rim', d: `M ${x - 7} ${y} A 7 5.2 0 0 1 ${x + 7} ${y}` }),
-    svgEl('ellipse', { class: 'burrow-hole', cx: x, cy: y, rx: 5.6, ry: 3.8 }),
-  );
-  return g;
-}
 
 // ── flights ─────────────────────────────────────────────────────────────────
 
