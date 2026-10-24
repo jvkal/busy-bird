@@ -72,13 +72,22 @@ const PROVIDER_BRANDS = {
   openai: 'openai', codex: 'openai', anthropic: 'anthropic', claude: 'claude-color',
   google: 'google-color', gemini: 'gemini-color', deepseek: 'deepseek-color',
   openrouter: 'openrouter', xai: 'xai', grok: 'grok', kimi: 'kimi', moonshot: 'kimi',
-  qwen: 'qwen-color', zhipu: 'zhipu-color', zcode: 'zhipu-color',
+  qwen: 'qwen-color', zhipu: 'zhipu-color', zcode: 'zhipu-color', glm: 'zhipu-color',
+  zai: 'xai', opencode: 'opencode', zen: 'opencode', qoder: 'qoder',
 };
 const MONO_BRANDS = new Set(['openai', 'anthropic', 'cursor', 'opencode', 'pi', 'grok', 'xai', 'openrouter', 'kimi']);
 
 function brandKeyOf(value, kind) {
   const key = String(value || '').trim().toLowerCase().replace(/\.svg$/, '').replace(/-color$/, '').replace(/\s+/g, '-');
-  return (kind === 'provider' ? PROVIDER_BRANDS : AGENT_BRANDS)[key] || '';
+  const table = kind === 'provider' ? PROVIDER_BRANDS : AGENT_BRANDS;
+  if (table[key]) return table[key];
+  // Fuzzy pass: plugin families name themselves after the brand they wrap
+  // (opencode-zen-free wraps opencode), so a contained brand key wins.
+  for (const [alias, brand] of Object.entries(table)) {
+    if (alias.length < 4) continue;
+    if (key.includes(alias) || (key.length >= 4 && alias.includes(key))) return brand;
+  }
+  return '';
 }
 
 // A nested <svg> placed at x/y and scaled to size; null when the brand is
