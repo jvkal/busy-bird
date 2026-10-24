@@ -13,6 +13,13 @@ const path = require('path');
 
 const WIDTH = 260;
 const HEIGHT = 160;
+const TOPBAR_H = 26;
+const MIN_WIDTH = 220;
+// The stage keeps its shape: height follows width, so the SVG canvas scales
+// instead of leaving bands.
+const RATIO = WIDTH / (HEIGHT - TOPBAR_H);
+const heightForWidth = (width) => Math.round(width / RATIO) + TOPBAR_H;
+const widthForHeight = (height) => Math.round((height - TOPBAR_H) * RATIO);
 const UPDATE_MS = 60 * 1000;
 
 const IS_SHOT = process.argv.find((arg) => arg.startsWith('--shot='));
@@ -39,9 +46,12 @@ function defaultSettings() {
     topmost: true,
     left: area.x + Math.round((area.width - WIDTH) / 2),
     top: area.y + Math.round((area.height - HEIGHT) / 2),
+    width: WIDTH,
+    height: HEIGHT,
     gateway: null,
     usagePeriod: 'today',
     opacity: 0.34,
+    themeColor: null,
   };
 }
 
@@ -54,6 +64,8 @@ function loadSettings() {
     // First run, or the file does not read: fall back to defaults.
   }
   settings = { ...defaultSettings(), ...stored };
+  settings.width = Math.min(Math.max(Number(settings.width) || WIDTH, MIN_WIDTH), 4000);
+  settings.height = heightForWidth(settings.width);
 }
 
 function saveSettings() {
@@ -211,10 +223,10 @@ function startUsageTimer() {
 
 // ── window ──────────────────────────────────────────────────────────────────
 
-function clampBounds(x, y) {
+function clampBounds(x, y, w = WIDTH, h = HEIGHT) {
   const area = screen.getPrimaryDisplay().workArea;
   return {
-    x: Math.min(Math.max(x, area.x - WIDTH + 60), area.x + area.width - 60),
+    x: Math.min(Math.max(x, area.x - w + 60), area.x + area.width - 60),
     y: Math.min(Math.max(y, area.y), area.y + area.height - 40),
   };
 }
@@ -224,6 +236,7 @@ function clampBounds(x, y) {
 // trust with waking a click-through window up.
 let hoverInteractive = false;
 let hoverKind = null;
+let panelOpen = false;
 let hitAreas = { controls: [], dragTop: 0, dragBottom: 26 };
 let hoverTimer = null;
 
@@ -249,7 +262,7 @@ function setHoverInteractive(value, kind = null) {
 function watchHover() {
   clearInterval(hoverTimer);
   hoverTimer = setInterval(() => {
-    if (!win || win.isDestroyed() || !win.isVisible() || dragState) return;
+    if (!win || win.isDestroyed() || !win.isVisible() || panelOpen || dragState || resizeState) return;
     const point = screen.getCursorScreenPoint();
     const bounds = win.getBounds();
     const contains = (rect) => point.x >= bounds.x + rect.x && point.x <= bounds.x + rect.x + rect.width
@@ -280,13 +293,15 @@ function normalizeHitAreas(raw) {
 }
 
 function createWindow() {
-  const bounds = clampBounds(Number(settings.left), Number(settings.top));
+  const width = settings.width;
+  const height = settings.height;
+  const bounds = clampBounds(Number(settings.left), Number(settings.top), width, height);
   settings.left = bounds.x;
   settings.top = bounds.y;
 
   win = new BrowserWindow({
-    width: WIDTH,
-    height: HEIGHT,
+    width,
+    height,
     x: bounds.x,
     y: bounds.y,
     frame: false,
@@ -355,9 +370,10 @@ function startDrag() {
     let ny = Math.round(state.windowY + now.y - state.pointerY);
     // Snap to the screen's centerlines: the perch likes the middle of the
     // desktop, and the guides in the renderer say when it took.
+    const box = win.getBounds();
     const area = screen.getDisplayNearestPoint(now).workArea;
-    const centerX = area.x + Math.round((area.width - WIDTH) / 2);
-    const centerY = area.y + Math.round((area.height - HEIGHT) / 2);
+    const centerX = area.x + Math.round((area.width - box.width) / 2);
+    const centerY = area.y + Math.round((area.height - box.height) / 2);
     const snapX = Math.abs(nx - centerX) <= 20;
     const snapY = Math.abs(ny - centerY) <= 20;
     if (snapX) nx = centerX;
@@ -400,6 +416,83 @@ function endDrag() {
         }
       }, 450);
     }
+  }
+  hoverInteractive = false;
+  hoverKind = null;
+}
+
+// ── resize from the edges and corners ───────────────────────────────────────
+
+let resizeState = null;
+
+function startResize(direction = 'se') {
+  if (!win || win.isDestroyed() || resizeState || dragState) return;
+  const dir = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].includes(direction) ? direction : 'se';
+  const point = screen.getCursorScreenPoint();
+  const bounds = win.getBounds();
+  const area = screen.getDisplayNearestPoint(point).workArea;
+  win.setIgnoreMouseEvents(false);
+  win.setFocusable(true);
+  win.focus();
+  const state = {
+    dir,
+    pointerX: point.x,
+    pointerY: point.y,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    timer: null,
+    max: null,
+  };
+  state.maxW = dir.includes('e') ? Math.max(bounds.width, area.x + area.width - bounds.x - 8)
+    : Math.max(bounds.width, bounds.x + bounds.width - area.x - 8);
+  state.maxH = dir.includes('s') ? Math.max(bounds.height, area.y + area.height - bounds.y - 8)
+    : Math.max(bounds.height, bounds.y + bounds.height - area.y - 8);
+  const minHeight = heightForWidth(MIN_WIDTH);
+  state.timer = setInterval(() => {
+    if (!win || win.isDestroyed()) {
+      endResize();
+      return;
+    }
+    const now = screen.getCursorScreenPoint();
+    const dx = now.x - state.pointerX;
+    const dy = now.y - state.pointerY;
+    let width = state.width;
+    let height = state.height;
+    let x = state.x;
+    let y = state.y;
+    if (dir.includes('e')) width = state.width + dx;
+    else if (dir.includes('w')) width = state.width - dx;
+    if (dir.includes('s')) height = state.height + dy;
+    else if (dir.includes('n')) height = state.height - dy;
+    // The canvas keeps its shape, so one dimension drives the other.
+    if (dir.includes('e') || dir.includes('w')) height = heightForWidth(width);
+    else width = widthForHeight(height);
+    width = Math.max(MIN_WIDTH, Math.min(state.maxW, width));
+    height = Math.max(minHeight, Math.min(state.maxH, height));
+    if (dir.includes('w')) x = state.x + state.width - width;
+    if (dir.includes('n')) y = state.y + state.height - height;
+    win.setBounds({ x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) }, false);
+    settings.width = Math.round(width);
+    settings.height = Math.round(height);
+    settings.left = Math.round(x);
+    settings.top = Math.round(y);
+  }, 16);
+  state.max = setTimeout(endResize, 15000);
+  resizeState = state;
+}
+
+function endResize() {
+  if (!resizeState) return;
+  clearInterval(resizeState.timer);
+  clearTimeout(resizeState.max);
+  resizeState = null;
+  saveSettings();
+  if (win && !win.isDestroyed()) {
+    win.setIgnoreMouseEvents(true, { forward: true });
+    win.setFocusable(false);
+    win.blur();
   }
   hoverInteractive = false;
   hoverKind = null;
@@ -561,6 +654,7 @@ function publicSettings() {
     usagePeriod: settings.usagePeriod,
     gateway: resolveGateway(),
     opacity: Math.min(1, Math.max(0.05, Number(settings.opacity) || 0.34)),
+    themeColor: typeof settings.themeColor === 'string' ? settings.themeColor : null,
   };
 }
 
@@ -577,6 +671,49 @@ ipcMain.on('bird:ready', () => {
 ipcMain.on('bird:hit-areas', (_event, areas) => { hitAreas = normalizeHitAreas(areas); });
 ipcMain.on('bird:drag-start', startDrag);
 ipcMain.on('bird:drag-end', endDrag);
+ipcMain.on('bird:resize-start', (_event, direction) => startResize(direction));
+ipcMain.on('bird:resize-end', endResize);
+ipcMain.on('bird:panel', (_event, open) => {
+  panelOpen = Boolean(open);
+  if (!win || win.isDestroyed()) return;
+  if (panelOpen) {
+    win.setIgnoreMouseEvents(false);
+    win.setFocusable(true);
+    win.focus();
+  } else {
+    win.setIgnoreMouseEvents(true, { forward: true });
+    win.setFocusable(false);
+    win.blur();
+  }
+});
+ipcMain.on('bird:save-settings', (_event, patch) => {
+  if (!patch || typeof patch !== 'object') return;
+  if (Number.isFinite(Number(patch.opacity))) {
+    settings.opacity = Math.min(1, Math.max(0.05, Number(patch.opacity)));
+  }
+  if (typeof patch.themeColor === 'string' || patch.themeColor === null) {
+    settings.themeColor = patch.themeColor;
+  }
+  saveSettings();
+  send('bird:settings', publicSettings());
+});
+ipcMain.on('window:reset', () => {
+  const area = screen.getPrimaryDisplay().workArea;
+  settings.width = WIDTH;
+  settings.height = HEIGHT;
+  const bounds = clampBounds(
+    area.x + Math.round((area.width - WIDTH) / 2),
+    area.y + Math.round((area.height - HEIGHT) / 2),
+    WIDTH, HEIGHT,
+  );
+  settings.left = bounds.x;
+  settings.top = bounds.y;
+  saveSettings();
+  if (win && !win.isDestroyed()) {
+    win.setBounds({ x: bounds.x, y: bounds.y, width: WIDTH, height: HEIGHT }, false);
+  }
+  send('bird:settings', publicSettings());
+});
 ipcMain.on('bird:period-next', () => {
   const index = PERIODS.indexOf(settings.usagePeriod);
   settings.usagePeriod = PERIODS[(index + 1) % PERIODS.length];

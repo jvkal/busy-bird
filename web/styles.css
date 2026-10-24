@@ -45,9 +45,10 @@ body {
 
 .pill {
   margin: 0 auto;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.045));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 2px 8px rgba(0, 0, 0, 0.18);
   color: #e6e6f0;
   font: 600 10px/1.5 inherit;
   font-family: inherit;
@@ -56,8 +57,138 @@ body {
   white-space: nowrap;
 }
 
-.pill:hover { background: rgba(255, 255, 255, 0.14); }
+.pill:hover { background: rgba(255, 255, 255, 0.16); }
 .pill.stale { opacity: 0.62; }
+
+.gear {
+  margin-right: 8px;
+  border: none;
+  background: transparent;
+  color: #a9a9bc;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.gear:hover { color: #eef; background: rgba(255, 255, 255, 0.10); }
+
+/* ── settings panel, expanded over the stage ───────────────────────────── */
+
+.panel {
+  display: none;
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 29px;
+  bottom: 5px;
+  z-index: 6;
+  flex-direction: column;
+  gap: 7px;
+  border-radius: 10px;
+  background: rgba(13, 13, 21, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  padding: 7px 10px;
+  font-size: 10px;
+  color: #d8d8e4;
+}
+
+.panel.open { display: flex; }
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  color: #eef;
+}
+
+.panel-close {
+  border: none;
+  background: transparent;
+  color: #9a9aac;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 5px;
+}
+
+.panel-close:hover { color: #fff; background: rgba(255, 255, 255, 0.10); }
+
+.panel-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 18px;
+}
+
+.panel-row label { color: #a7a7ba; flex: none; }
+
+.panel-row output { color: #eef; min-width: 28px; text-align: right; }
+
+.panel-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--theme, #a18bff);
+  height: 3px;
+}
+
+.panel-row input[type="color"] {
+  width: 22px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.swatches { display: flex; gap: 5px; align-items: center; }
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch.auto {
+  background: conic-gradient(#ff7eb6, #ffe066, #5be39a, #61d7e7, #a18bff, #ff7eb6);
+}
+
+.swatch.on {
+  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 1px;
+}
+
+button.mini {
+  margin-left: auto;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #d8d8e4;
+  font-size: 9px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+button.mini:hover { background: rgba(255, 255, 255, 0.14); }
+
+/* ── edge and corner resize bands ──────────────────────────────────────── */
+
+.rz { position: fixed; z-index: 5; }
+
+.rz.n { top: 0; left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
+.rz.s { bottom: 0; left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
+.rz.e { right: 0; top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
+.rz.w { left: 0; top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
+.rz.ne { top: 0; right: 0; width: 13px; height: 13px; cursor: nesw-resize; }
+.rz.nw { top: 0; left: 0; width: 13px; height: 13px; cursor: nwse-resize; }
+.rz.se { bottom: 0; right: 0; width: 13px; height: 13px; cursor: nwse-resize; }
+.rz.sw { bottom: 0; left: 0; width: 13px; height: 13px; cursor: nesw-resize; }
 
 /* ── the sky ───────────────────────────────────────────────────────────── */
 
@@ -78,9 +209,17 @@ body {
 
 .wire.live {
   stroke: var(--c, #a18bff);
-  stroke-opacity: 0.55;
+  stroke-opacity: 0.65;
   stroke-dasharray: 3 5;
   animation: dashFlow 0.9s linear infinite;
+}
+
+.wire.glow {
+  fill: none;
+  stroke: var(--c, #a18bff);
+  stroke-width: 3.4;
+  stroke-opacity: 0.16;
+  stroke-linecap: round;
 }
 
 .wire.resting {
@@ -92,40 +231,79 @@ body {
   to { stroke-dashoffset: -8; }
 }
 
+/* ── chips: glass cards with a colored avatar dot and a burrow ─────────── */
+
 .chip-box {
+  fill: rgba(255, 255, 255, 0.055);
+  stroke: rgba(255, 255, 255, 0.20);
   stroke-width: 1;
 }
 
+.chip-box.live {
+  stroke: color-mix(in srgb, var(--c, #a18bff) 55%, rgba(255, 255, 255, 0.25));
+  filter: drop-shadow(0 1px 6px color-mix(in srgb, var(--c, #a18bff) 30%, transparent));
+}
+
+.chip-dot { fill: var(--c, #a18bff); }
+
+.chip-dot.pulse { animation: packetWait 1.3s ease-in-out infinite; }
+
 .chip-text {
   font-size: 9px;
-  fill: #e4e4ee;
+  fill: #eaeaf4;
   font-weight: 600;
 }
 
 .chip-sub {
   font-size: 8px;
-  fill: #b9b9c8;
+  fill: #c3c3d2;
   font-weight: 400;
 }
 
-.hub-box {
-  fill: rgba(255, 255, 255, 0.055);
-  stroke: rgba(255, 255, 255, 0.12);
-  stroke-width: 1;
+.burrow-hole { fill: #07070d; stroke: rgba(0, 0, 0, 0.55); stroke-width: 0.8; }
+
+.burrow-rim {
+  fill: none;
+  stroke: color-mix(in srgb, var(--c, #a18bff) 55%, rgba(255, 255, 255, 0.4));
+  stroke-width: 1.3;
+  stroke-linecap: round;
 }
 
-.hub-box.active {
-  stroke: var(--c, #a18bff);
-  stroke-opacity: 0.5;
+/* ── the hub: a glass burrow with a glow ───────────────────────────────── */
+
+.hub-glow { opacity: 0.45; transition: opacity 0.4s ease; }
+
+.glow-a { stop-color: color-mix(in srgb, var(--c, #a18bff) 34%, transparent); }
+.glow-b { stop-color: color-mix(in srgb, var(--c, #a18bff) 10%, transparent); }
+.glow-c { stop-color: transparent; }
+
+#hub.active .hub-glow { opacity: 0.95; }
+
+.hub-box {
+  fill: rgba(20, 20, 32, 0.55);
+  stroke: rgba(255, 255, 255, 0.34);
+  stroke-width: 1;
+  transition: stroke 0.3s ease;
+}
+
+#hub.active .hub-box {
+  stroke: color-mix(in srgb, var(--c, #a18bff) 60%, rgba(255, 255, 255, 0.3));
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--c, #a18bff) 42%, transparent));
+}
+
+#hub.passing .hub-box {
+  stroke: color-mix(in srgb, var(--c, #a18bff) 75%, rgba(255, 255, 255, 0.3));
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--c, #a18bff) 62%, transparent));
 }
 
 .hub-glyph {
-  fill: #d4d4e0;
-  fill-opacity: 0.92;
+  fill: #e9e9f4;
+  fill-opacity: 0.95;
 }
 
-.hub-glyph.active {
-  fill: var(--c, #a18bff);
+#hub.active .hub-glyph {
+  fill: color-mix(in srgb, var(--c, #a18bff) 60%, #ffffff);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c, #a18bff) 45%, transparent));
 }
 
 /* ── the flying courier ────────────────────────────────────────────────── */
@@ -175,25 +353,26 @@ body {
   filter: drop-shadow(0 0 3px #ff6b6b);
 }
 
-.flying-bird.held .wing {
-  animation: none;
-  transform: scaleY(-0.4) skewX(8deg);
-}
+/* Held: the courier has tucked itself into the burrow; only the packet it
+   delivered keeps glowing at the hole mouth. */
+.flying-bird.held .flier { opacity: 0; }
 
-.flying-bird.held .flier {
-  animation: heldBob 1.5s ease-in-out infinite;
-}
+.flying-bird.held .packet { animation: packetWait 1.3s ease-in-out infinite; }
 
-.flying-bird.held.at-account .packet { animation: packetWait 1.3s ease-in-out infinite; }
+.flying-bird .rt-lift { animation: birdCome 0.3s ease-out; }
+
+.flying-bird .flier:not(.carrying) .rt-lift { animation: none; }
 
 @keyframes wingFlap {
   0%, 100% { transform: scaleY(1); }
   55% { transform: scaleY(-0.62) skewX(-8deg); }
 }
 
-@keyframes heldBob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-1.6px); }
+@keyframes birdCome {
+  from {
+    transform: translate(-5px, -9px) scale(0.8);
+    opacity: 0;
+  }
 }
 
 @keyframes packetWait {

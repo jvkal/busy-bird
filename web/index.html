@@ -9,9 +9,48 @@
 <body>
   <header class="topbar" id="topbar">
     <span class="dot" id="dot" title="正在连接"></span>
-    <button class="pill" id="pill" title="单击切换时间窗">— tok</button>
+    <button class="pill hot" id="pill" title="单击切换时间窗">— tok</button>
+    <button class="gear hot" id="gear" title="设置">⚙</button>
   </header>
+
+  <div class="panel" id="panel">
+    <div class="panel-head">
+      <span>设置</span>
+      <button class="panel-close" id="panelClose" title="关闭">✕</button>
+    </div>
+    <div class="panel-row">
+      <label for="opSlider">不透明度</label>
+      <input type="range" id="opSlider" min="20" max="100" step="5">
+      <output id="opVal">34%</output>
+    </div>
+    <div class="panel-row">
+      <label>主题颜色</label>
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <div class="panel-row">
+      <label for="customColor">自定义</label>
+      <input type="color" id="customColor" value="#a18bff">
+      <button class="mini" id="resetPlace" title="回到屏幕正中间，恢复默认大小">恢复默认位置和大小</button>
+    </div>
+  </div>
+
+  <div class="rz n" data-dir="n"></div>
+  <div class="rz s" data-dir="s"></div>
+  <div class="rz e" data-dir="e"></div>
+  <div class="rz w" data-dir="w"></div>
+  <div class="rz ne" data-dir="ne"></div>
+  <div class="rz nw" data-dir="nw"></div>
+  <div class="rz se" data-dir="se"></div>
+  <div class="rz sw" data-dir="sw"></div>
+
   <svg id="sky" viewBox="0 0 260 160" aria-hidden="true">
+    <defs>
+      <radialGradient id="glowGrad">
+        <stop offset="0" class="glow-a"/>
+        <stop offset="0.7" class="glow-b"/>
+        <stop offset="1" class="glow-c"/>
+      </radialGradient>
+    </defs>
     <g id="wires"></g>
     <g id="chips"></g>
     <g id="hub"></g>

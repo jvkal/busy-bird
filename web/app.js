@@ -180,57 +180,81 @@ function render() {
   wires.innerHTML = '';
   chips.innerHTML = '';
   for (const group of state.groups.values()) {
+    const accent = accentOf(group);
     const y = laneY(group.lane);
     const active = group.routes.some(id => requestActive(state.routes.get(String(id))));
-    const inPath = svgEl('path', { class: `wire${active ? ' live' : ''}`, d: wireCurve({ x: AGENT_X, y }, { x: HUB.left, y: HUB.y, tx: 1, ty: 0 }) });
-    const outPath = svgEl('path', { class: `wire${active ? ' live' : ' resting'}`, d: wireCurve({ x: HUB.right, y: HUB.y, tx: 1, ty: 0 }, { x: ACCOUNT_X, y }) });
-    inPath.style.setProperty('--c', group.color);
-    outPath.style.setProperty('--c', group.color);
+    const inD = wireCurve({ x: AGENT_X, y }, { x: HUB.left, y: HUB.y, tx: 1, ty: 0 });
+    const outD = wireCurve({ x: HUB.right, y: HUB.y, tx: 1, ty: 0 }, { x: ACCOUNT_X, y });
+    if (active) {
+      // a soft underglow under the live dashes
+      const inGlow = svgEl('path', { class: 'wire glow', d: inD });
+      const outGlow = svgEl('path', { class: 'wire glow', d: outD });
+      inGlow.style.setProperty('--c', accent);
+      outGlow.style.setProperty('--c', accent);
+      wires.append(inGlow, outGlow);
+    }
+    const inPath = svgEl('path', { class: `wire${active ? ' live' : ''}`, d: inD });
+    const outPath = svgEl('path', { class: `wire${active ? ' live' : ' resting'}`, d: outD });
+    inPath.style.setProperty('--c', accent);
+    outPath.style.setProperty('--c', accent);
     wires.append(inPath, outPath);
+    // a burrow at each end: the courier tucks itself in there to wait
+    const inBurrow = burrow(AGENT_X, y);
+    const outBurrow = burrow(ACCOUNT_X, y);
+    inBurrow.style.setProperty('--c', accent);
+    outBurrow.style.setProperty('--c', accent);
+    wires.append(inBurrow, outBurrow);
 
     const route = latestRouteOf(group);
     const count = group.routes.length;
     const agentText = chipLabel(group.agent) + (count > 1 ? ` ×${count}` : '');
-    chips.append(
-      chip(group.lane, group.color, agentText, accountLabel(route || {}), route?.model || '', route?.agent || ''),
-    );
+    chips.append(chip(group, accent, agentText, accountLabel(route || {}), route?.model || '', route?.agent || ''));
   }
   const hubActive = [...state.routes.values()].some(requestActive);
-  hubBox.classList.toggle('active', hubActive);
-  hubGlyph.classList.toggle('active', hubActive);
-  hubLayer.style.setProperty('--c', hubActive ? [...state.groups.values()][0]?.color || '' : '');
+  hubLayer.classList.toggle('active', hubActive);
+  hubLayer.style.setProperty('--c', hubActive ? accentOf([...state.groups.values()][0]) || '' : '');
   perch.style.display = flights.size ? 'none' : '';
   perch.classList.toggle('sleep', !state.online);
 }
 
-function chip(lane, color, agentText, accountText, title, agentName) {
-  const y = laneY(lane);
-  const group = svgEl('g');
-  group.style.setProperty('--c', color);
+const accentOf = group => state.settings?.themeColor || group.color;
+
+// A little burrow at the wire's end: dark hole with an earth rim above it.
+function burrow(x, y) {
+  const g = svgEl('g', { class: 'burrow' });
+  g.append(
+    svgEl('path', { class: 'burrow-rim', d: `M ${x - 7} ${y} A 7 5.2 0 0 1 ${x + 7} ${y}` }),
+    svgEl('ellipse', { class: 'burrow-hole', cx: x, cy: y, rx: 5.6, ry: 3.8 }),
+  );
+  return g;
+}
+
+function chip(group, accent, agentText, accountText, title, agentName) {
+  const y = laneY(group.lane);
+  const active = group.routes.some(id => requestActive(state.routes.get(String(id))));
+  const g = svgEl('g');
+  g.style.setProperty('--c', accent);
   const agentBox = svgEl('rect', {
-    class: 'chip-box', x: 6, y: y - 11, width: 62, height: 22, rx: 7,
-    fill: color, 'fill-opacity': 0.14, stroke: color, 'stroke-opacity': 0.4,
+    class: `chip-box${active ? ' live' : ''}`, x: 4, y: y - 10, width: 58, height: 20, rx: 7,
   });
-  const agentLabel = svgEl('text', { class: 'chip-text', x: 12, y: y + 3.2 });
+  const agentDot = svgEl('circle', { class: `chip-dot${active ? ' pulse' : ''}`, cx: 12, cy: y, r: 2.7 });
+  const agentLabel = svgEl('text', { class: 'chip-text', x: 18, y: y + 3 });
   agentLabel.textContent = agentText;
   const accountBox = svgEl('rect', {
-    class: 'chip-box', x: 232, y: y - 11, width: 62, height: 22, rx: 7,
-    fill: color, 'fill-opacity': 0.10, stroke: color, 'stroke-opacity': 0.28,
+    class: `chip-box${active ? ' live' : ''}`, x: 198, y: y - 10, width: 58, height: 20, rx: 7,
   });
-  const accountNode = svgEl('text', { class: 'chip-sub', x: 238, y: y + 3.2 });
+  const accountNode = svgEl('text', { class: 'chip-sub', x: 204, y: y + 3 });
   accountNode.textContent = accountText;
   if (title) {
     const tip = svgEl('title');
     tip.textContent = `${agentName}\n${title}`;
-    group.append(tip);
+    g.append(tip);
   }
-  group.append(agentBox, agentLabel, accountBox, accountNode);
-  return group;
+  g.append(agentBox, agentDot, agentLabel, accountBox, accountNode);
+  return g;
 }
 
 // ── flights ─────────────────────────────────────────────────────────────────
-
-const HOLD_HUB = { x: 148, y: 70 };
 
 function anchorsOf(flight) {
   const y = laneY(flight.lane);
@@ -286,10 +310,15 @@ function poseBird(flight, p, vx, vy, scale = 0.62) {
 }
 
 function ripple() {
+  const accent = hubLayer.style.getPropertyValue('--c') || '#a18bff';
   const circle = svgEl('circle', { class: 'ripple', cx: (HUB.left + HUB.right) / 2, cy: HUB.y });
-  circle.style.setProperty('--c', hubLayer.style.getPropertyValue('--c') || '#a18bff');
+  circle.style.setProperty('--c', accent);
   fx.append(circle);
-  window.setTimeout(() => circle.remove(), 700);
+  hubLayer.classList.add('passing');
+  window.setTimeout(() => {
+    circle.remove();
+    hubLayer.classList.remove('passing');
+  }, 700);
 }
 
 function flyTo(flight, spec, ms, crossAt = -1) {
@@ -319,22 +348,22 @@ function flyTo(flight, spec, ms, crossAt = -1) {
 }
 
 function setPose(flight, pose) {
+  const held = pose.includes('hold');
   flight.bird.classList.toggle('back', pose.includes('back'));
   flight.bird.classList.toggle('failed', pose.includes('failed'));
-  flight.bird.classList.toggle('held', pose.includes('hold'));
+  flight.bird.classList.toggle('held', held);
+  // The courier pops out of the burrow when it flies again.
+  flight.flier.classList.toggle('carrying', !held);
 }
 
+// Waiting happens inside a burrow: the bird hides and only the packet it
+// delivered keeps glowing at the hole mouth.
 function holdAt(flight, where) {
   setPose(flight, `hold-${where}`);
-  flight.bird.classList.toggle('at-account', where === 'account');
   if (where === 'hub') {
-    flight.bird.setAttribute('transform', `translate(${HOLD_HUB.x} ${HOLD_HUB.y}) scale(0.5)`);
+    flight.bird.setAttribute('transform', `translate(${HUB.left + 2} ${HUB.y}) scale(0.62)`);
   } else {
-    if (buildLegs(flight, [{ path: 'through' }, { path: 'out' }])) {
-      const path = flight.legs.at(-1).path;
-      const p = path.getPointAtLength(path.getTotalLength());
-      flight.bird.setAttribute('transform', `translate(${p.x - 5} ${p.y}) scale(0.5)`);
-    }
+    flight.bird.setAttribute('transform', `translate(${ACCOUNT_X} ${laneY(flight.lane)}) scale(0.62)`);
   }
 }
 
@@ -432,7 +461,6 @@ async function runFlight(flight) {
         if (flight.route.done && !(flight.route.tries || [])[index]) { fadeOut(flight); return; }
       }
       setPose(flight, 'fly');
-      flight.bird.classList.remove('at-account');
       if (!await travel(flight, LEGS_TO_ACCOUNT)) return;
       holdAt(flight, 'account');
       await waitFor(flight, r => Boolean((r.tries || [])[index]?.done));
@@ -546,24 +574,113 @@ function applyOpacity(value) {
 // The main process polls the cursor against these rectangles to decide when
 // the click-through card wakes up and takes the pointer.
 function reportHitAreas() {
-  const rect = pill.getBoundingClientRect();
-  window.bird?.hitAreas({
-    controls: [{ x: rect.x, y: rect.y, width: rect.width, height: rect.height }],
-    dragTop: 0,
-    dragBottom: 26,
-  });
+  const controls = [...document.querySelectorAll('.hot')]
+    .filter(el => el.getClientRects().length)
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height };
+    });
+  window.bird?.hitAreas({ controls, dragTop: 0, dragBottom: 26 });
 }
 window.addEventListener('resize', reportHitAreas);
+
+// ── settings panel ──────────────────────────────────────────────────────────
+
+const panel = $('panel');
+const gear = $('gear');
+panel.classList.add('hot');
+
+const SWATCHES = [null, '#a18bff', '#5be39a', '#61d7e7', '#ffb86b', '#ff7eb6', '#9ecbff', '#ffe066'];
+let saveTimer = 0;
+
+function savePatch(patch) {
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => window.bird?.saveSettings(patch), 250);
+}
+
+function applyTheme(color) {
+  document.body.style.setProperty('--theme', color || '#a18bff');
+  render();
+}
+
+function syncPanel() {
+  const s = state.settings || {};
+  const op = Math.round((Number(s.opacity) || 0.34) * 100);
+  $('opSlider').value = op;
+  $('opVal').textContent = `${op}%`;
+  const theme = s.themeColor || null;
+  for (const btn of document.querySelectorAll('.swatch')) {
+    btn.classList.toggle('on', (btn.dataset.color || null) === theme);
+  }
+  $('customColor').value = theme || '#a18bff';
+}
+
+function togglePanel(open) {
+  panel.classList.toggle('open', open);
+  window.bird?.panel(open);
+  if (open) syncPanel();
+  reportHitAreas();
+}
+
+gear.addEventListener('click', () => togglePanel(!panel.classList.contains('open')));
+$('panelClose').addEventListener('click', () => togglePanel(false));
+
+for (const color of SWATCHES) {
+  const btn = document.createElement('button');
+  btn.className = color ? 'swatch' : 'swatch auto';
+  btn.title = color || '跟随 Agent 配色';
+  btn.dataset.color = color || '';
+  if (color) btn.style.background = color;
+  btn.addEventListener('click', () => {
+    state.settings = { ...state.settings, themeColor: color };
+    applyTheme(color);
+    savePatch({ themeColor: color });
+    syncPanel();
+  });
+  $('swatches').append(btn);
+}
+
+$('customColor').addEventListener('input', (event) => {
+  const color = event.target.value;
+  state.settings = { ...state.settings, themeColor: color };
+  applyTheme(color);
+  savePatch({ themeColor: color });
+  for (const btn of document.querySelectorAll('.swatch')) btn.classList.remove('on');
+});
+
+$('opSlider').addEventListener('input', (event) => {
+  const value = Number(event.target.value) / 100;
+  applyOpacity(value);
+  $('opVal').textContent = `${event.target.value}%`;
+  state.settings = { ...state.settings, opacity: value };
+  savePatch({ opacity: value });
+});
+
+$('resetPlace').addEventListener('click', () => window.bird?.resetPlace());
+
+// ── drag from the top strip, resize from the edges ─────────────────────────
 
 pill.addEventListener('click', () => window.bird?.periodNext());
 
 const topbar = $('topbar');
 topbar.addEventListener('mousedown', (event) => {
-  if (event.target.closest('.pill')) return;
+  if (event.target.closest('.pill') || event.target.closest('.gear')) return;
   event.preventDefault();
   window.bird?.dragStart();
 });
-window.addEventListener('mouseup', () => window.bird?.dragEnd());
+
+for (const band of document.querySelectorAll('.rz')) {
+  band.addEventListener('mousedown', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    window.bird?.resizeStart(band.dataset.dir);
+  });
+}
+
+window.addEventListener('mouseup', () => {
+  window.bird?.dragEnd();
+  window.bird?.resizeEnd();
+});
 
 window.bird?.onTrace(applyTrace);
 window.bird?.onConnection((connection) => {
@@ -580,7 +697,9 @@ window.bird?.onUsage((usage) => {
 window.bird?.onSettings((settings) => {
   state.settings = settings;
   applyOpacity(settings.opacity);
+  applyTheme(settings.themeColor);
   renderPill();
+  if (panel.classList.contains('open')) syncPanel();
 });
 window.bird?.onSnap(({ x, y }) => {
   document.body.classList.toggle('snap-x', Boolean(x));
@@ -589,6 +708,7 @@ window.bird?.onSnap(({ x, y }) => {
 
 buildHub();
 applyOpacity(state.settings?.opacity);
+applyTheme(state.settings?.themeColor);
 render();
 renderDot();
 renderPill();
