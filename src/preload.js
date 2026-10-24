@@ -32,4 +32,5 @@ contextBridge.exposeInMainWorld('bird', {
   onUsage: (callback) => ipcRenderer.on('bird:usage', (_event, data) => callback(data)),
   onSettings: (callback) => ipcRenderer.on('bird:settings', (_event, data) => callback(data)),
   onSnap: (callback) => ipcRenderer.on('bird:snap', (_event, data) => callback(data)),
+  onExpand: (callback) => ipcRenderer.on('bird:expand', (_event, data) => callback(data)),
 });

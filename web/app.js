@@ -160,6 +160,7 @@ const fx = $('fx');
 const birdsLayer = $('birds');
 const pill = $('pill');
 const dot = $('dot');
+const island = $('island');
 
 // ── the card's hub: the perch magpie lives here ─────────────────────────────
 
@@ -386,6 +387,32 @@ function render() {
   }
   perch.style.display = flights.size ? 'none' : '';
   perch.classList.toggle('sleep', !state.online);
+  updateIsland();
+}
+
+// ── the docked island: two ends, a dashed channel, running lights ──────────
+
+const islLights = $('islLights');
+const islLeft = $('islLeft');
+const islRight = $('islRight');
+
+function updateIsland() {
+  if (!islLights) return;
+  islLights.innerHTML = '';
+  const first = [...state.groups.values()][0];
+  const accent = first ? accentOf(first) : '#a18bff';
+  islLeft.style.setProperty('--c', accent);
+  islRight.style.setProperty('--c', accent);
+  let i = 0;
+  for (const group of state.groups.values()) {
+    if (!group.routes.some(id => requestActive(state.routes.get(String(id))))) continue;
+    const dot = svgEl('circle', { class: 'isl-light', cx: 22, cy: 13, r: 2.2 });
+    dot.style.setProperty('--c', accentOf(group));
+    dot.style.animationDelay = `${(-(i * 0.8)).toFixed(2)}s`;
+    dot.style.animationDuration = `${(2.2 + i * 0.4).toFixed(2)}s`;
+    islLights.append(dot);
+    if (++i >= 3) break;
+  }
 }
 
 function wire(d, accent, kind, lit) {
@@ -777,7 +804,20 @@ function renderDot() {
 // ── wiring ──────────────────────────────────────────────────────────────────
 
 function applyOpacity(value) {
-  const alpha = Math.min(1, Math.max(0.05, Number(value) || 0.34));
+  state.opacity = Math.min(1, Math.max(0.05, Number(value) || 0.34));
+  refreshSurface();
+}
+
+// The docked island idles as a transparent window; the card surface only
+// paints when it drops down.
+function refreshSurface() {
+  const dockedIdle = document.body.classList.contains('docked')
+    && !document.body.classList.contains('expanded');
+  if (dockedIdle) {
+    document.body.style.background = 'transparent';
+    return;
+  }
+  const alpha = state.opacity ?? 0.34;
   document.body.style.background = `linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0) 42%), `
     + `linear-gradient(rgba(16,16,24,${alpha}), rgba(16,16,24,${alpha}))`;
 }
@@ -835,6 +875,17 @@ function togglePanel(open) {
 
 gear.addEventListener('click', () => togglePanel(!panel.classList.contains('open')));
 $('panelClose').addEventListener('click', () => togglePanel(false));
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && panel.classList.contains('open')) togglePanel(false);
+});
+// Clicking anywhere outside the panel closes it, so it can never trap the card.
+document.addEventListener('mousedown', (event) => {
+  if (panel.classList.contains('open')
+    && !event.target.closest('.panel')
+    && !event.target.closest('.gear')) {
+    togglePanel(false);
+  }
+});
 
 for (const color of SWATCHES) {
   const btn = document.createElement('button');
@@ -893,6 +944,12 @@ window.addEventListener('mouseup', () => {
   window.bird?.resizeEnd();
 });
 
+// Dragging the island itself undocks it from the screen top.
+island.addEventListener('mousedown', (event) => {
+  event.preventDefault();
+  window.bird?.dragStart();
+});
+
 window.bird?.onTrace(applyTrace);
 window.bird?.onConnection((connection) => {
   state.online = Boolean(connection.online);
@@ -908,9 +965,15 @@ window.bird?.onUsage((usage) => {
 window.bird?.onSettings((settings) => {
   state.settings = settings;
   applyOpacity(settings.opacity);
+  document.body.classList.toggle('docked', Boolean(settings.docked));
+  refreshSurface();
   applyTheme(settings.themeColor);
   renderPill();
   if (panel.classList.contains('open')) syncPanel();
+});
+window.bird?.onExpand((expanded) => {
+  document.body.classList.toggle('expanded', Boolean(expanded));
+  refreshSurface();
 });
 window.bird?.onSnap(({ x, y }) => {
   document.body.classList.toggle('snap-x', Boolean(x));

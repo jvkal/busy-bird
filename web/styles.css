@@ -404,13 +404,11 @@ button.mini:hover { background: rgba(255, 255, 255, 0.14); }
 
 .flying-bird .wing.far { animation-delay: -0.03s; }
 
-.flying-bird .packet {
-  fill: var(--agent, #a18bff);
-  filter: drop-shadow(0 0 3px var(--agent, #a18bff));
-}
+/* Outbound the beak is empty: the request waits as a glowing packet in the
+   burrow, and the answer rides home as a different, warmer light. */
+.flying-bird .packet { opacity: 0; }
 
 .flying-bird.back .packet {
-  /* The answer rides home as a different light than the request did. */
   fill: #fff3c4;
   filter: drop-shadow(0 0 4px #ffd76b);
 }
@@ -420,26 +418,14 @@ button.mini:hover { background: rgba(255, 255, 255, 0.14); }
   filter: drop-shadow(0 0 3px #ff6b6b);
 }
 
-/* Held: the courier perches at the burrow mouth guarding its packet, which
-   glows down in the hole. */
-.flying-bird.held .wing {
-  animation: none;
-  transform: scaleY(-0.4) skewX(8deg);
-}
-
-.flying-bird.held .flier { animation: heldBob 1.5s ease-in-out infinite; }
-
-.flying-bird.held .packet { opacity: 0; }
+/* Held: the courier has tucked itself into the burrow — the data it carried
+   glows at the hole mouth until the answer sends it home. */
+.flying-bird.held .flier { opacity: 0; }
 
 .hole-packet {
   fill: var(--c, #a18bff);
   filter: drop-shadow(0 0 4px var(--c, #a18bff));
   animation: packetWait 1.3s ease-in-out infinite;
-}
-
-@keyframes heldBob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-1.6px); }
 }
 
 @keyframes wingFlap {
@@ -538,6 +524,61 @@ body::after {
 
 body.snap-x::before { opacity: 1; }
 body.snap-y::after { opacity: 1; }
+
+/* ── docked Dynamic-Island mode ────────────────────────────────────────── */
+
+#island {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 50%;
+  margin-left: -100px;
+  width: 200px;
+  height: 26px;
+  border-radius: 14px;
+  background: rgba(8, 8, 14, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  z-index: 8;
+  cursor: grab;
+  overflow: hidden;
+}
+
+body.docked #island { display: block; }
+body.docked.expanded #island { display: none; }
+
+/* Docked and quiet: only the island shows; the stage waits for the hover. */
+body.docked:not(.expanded) #sky,
+body.docked:not(.expanded) .topbar { display: none; }
+
+body.docked:not(.expanded) {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.docked .rz { display: none; }
+
+.isl-end {
+  fill: var(--c, #a18bff);
+  filter: drop-shadow(0 0 3px var(--c, #a18bff));
+}
+
+.isl-track {
+  stroke: rgba(255, 255, 255, 0.30);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 4;
+}
+
+.isl-light {
+  fill: var(--c, #a18bff);
+  filter: drop-shadow(0 0 3px var(--c, #a18bff));
+  animation: islMove 2.4s ease-in-out infinite;
+}
+
+@keyframes islMove {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(148px); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .flying-bird .wing,

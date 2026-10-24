@@ -76,6 +76,14 @@ function loadSettings() {
   settings = { ...defaultSettings(), ...stored };
   settings.width = Math.min(Math.max(Number(settings.width) || WIDTH, MIN_WIDTH), 4000);
   settings.height = heightForWidth(settings.width);
+  if (settings.docked) {
+    // The island lives pinned to the top-center of the work area.
+    const area = screen.getPrimaryDisplay().workArea;
+    settings.width = WIDTH;
+    settings.height = HEIGHT;
+    settings.left = area.x + Math.round((area.width - WIDTH) / 2);
+    settings.top = area.y;
+  }
 }
 
 function saveSettings() {
@@ -247,6 +255,7 @@ function clampBounds(x, y, w = WIDTH, h = HEIGHT) {
 let hoverInteractive = false;
 let hoverKind = null;
 let panelOpen = false;
+let expandState = false;
 let hitAreas = { controls: [], dragTop: 0, dragBottom: 26 };
 let hoverTimer = null;
 
@@ -275,6 +284,20 @@ function watchHover() {
     if (!win || win.isDestroyed() || !win.isVisible() || panelOpen || dragState || resizeState) return;
     const point = screen.getCursorScreenPoint();
     const bounds = win.getBounds();
+    // Docked as the Dynamic Island: hovering the pill drops the card down,
+    // leaving the window folds it back up.
+    if (settings.docked) {
+      const inWindow = point.x >= bounds.x && point.x <= bounds.x + bounds.width
+        && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
+      const onIsland = point.y <= bounds.y + 30 && inWindow;
+      const wantExpand = expandState ? inWindow : onIsland;
+      setHoverInteractive(wantExpand, wantExpand ? 'control' : null);
+      if (expandState !== wantExpand) {
+        expandState = wantExpand;
+        send('bird:expand', wantExpand);
+      }
+      return;
+    }
     const contains = (rect) => point.x >= bounds.x + rect.x && point.x <= bounds.x + rect.x + rect.width
       && point.y >= bounds.y + rect.y && point.y <= bounds.y + rect.y + rect.height;
     const onControl = hitAreas.controls.some(contains);
@@ -417,26 +440,48 @@ function endDrag() {
   send('bird:snap', { x: false, y: false });
   if (win && !win.isDestroyed()) {
     const [x, y] = win.getPosition();
+    // Drop the island onto the screen's top-center edge to dock it.
+    const area = screen.getPrimaryDisplay().workArea;
+    const centerX = area.x + Math.round((area.width - WIDTH) / 2);
+    if (y <= area.y + 26 && Math.abs(x - centerX) <= 24 && !settings.docked) {
+      settings.docked = true;
+      settings.left = centerX;
+      settings.top = area.y;
+      win.setBounds({ x: centerX, y: area.y, width: WIDTH, height: HEIGHT }, false);
+    } else if (y > area.y + 26 && settings.docked) {
+      settings.docked = false;
+    }
     settings.left = x;
     settings.top = y;
     saveSettings();
-    if (!wasSnapped) {
-      win.setIgnoreMouseEvents(true, { forward: true });
-      win.setFocusable(false);
-      win.blur();
-    } else {
-      // Keep the pointer for a beat on a snap, so the guides are seen.
-      setTimeout(() => {
-        if (win && !win.isDestroyed() && !dragState) {
-          win.setIgnoreMouseEvents(true, { forward: true });
-          win.setFocusable(false);
-          win.blur();
-        }
-      }, 450);
+    if (expandState) {
+      expandState = false;
+      send('bird:expand', false);
     }
+    win.setIgnoreMouseEvents(true, { forward: true });
+    win.setFocusable(false);
+    win.blur();
   }
   hoverInteractive = false;
   hoverKind = null;
+  send('bird:settings', publicSettings());
+}
+
+function setDocked(value) {
+  settings.docked = Boolean(value);
+  if (settings.docked) {
+    const area = screen.getPrimaryDisplay().workArea;
+    settings.width = WIDTH;
+    settings.height = HEIGHT;
+    settings.left = area.x + Math.round((area.width - WIDTH) / 2);
+    settings.top = area.y;
+  }
+  saveSettings();
+  if (win && !win.isDestroyed()) {
+    win.setBounds({ x: settings.left, y: settings.top, width: settings.width, height: settings.height }, false);
+  }
+  send('bird:settings', publicSettings());
+  refreshTrayMenu();
 }
 
 // ── resize from the edges and corners ───────────────────────────────────────
@@ -550,6 +595,7 @@ function refreshTrayMenu() {
         send('bird:settings', publicSettings());
       },
     })) },
+    { label: '灵动岛模式（吸附屏幕顶部）', type: 'checkbox', checked: Boolean(settings.docked), click: () => setDocked(!settings.docked) },
     { label: '不透明度', submenu: [0.2, 0.3, 0.4, 0.5, 0.7, 1].map((value) => ({
       label: `${Math.round(value * 100)}%`,
       type: 'radio',
@@ -676,6 +722,7 @@ function publicSettings() {
     gateway: resolveGateway(),
     opacity: Math.min(1, Math.max(0.05, Number(settings.opacity) || 0.34)),
     themeColor: typeof settings.themeColor === 'string' ? settings.themeColor : null,
+    docked: Boolean(settings.docked),
   };
 }
 
@@ -714,6 +761,10 @@ ipcMain.on('bird:save-settings', (_event, patch) => {
   }
   if (typeof patch.themeColor === 'string' || patch.themeColor === null) {
     settings.themeColor = patch.themeColor;
+  }
+  if (typeof patch.docked === 'boolean' && patch.docked !== Boolean(settings.docked)) {
+    setDocked(patch.docked);
+    return;
   }
   saveSettings();
   send('bird:settings', publicSettings());
