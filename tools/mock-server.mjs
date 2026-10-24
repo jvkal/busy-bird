@@ -23,6 +23,7 @@ function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
 function spawnRequest() {
   const id = nextId++;
   const agent = pick(AGENTS);
+  const accountId = agent === 'dsh' ? 'dsh/self-model' : pick(ACCOUNTS);
   const route = {
     seq: seq++,
     id,
@@ -30,20 +31,20 @@ function spawnRequest() {
     agent,
     provider: 'mock',
     model: 'mock/deepseek-v4.1-flash',
-    order: [{ id: pick(ACCOUNTS), provider: 'mock', name: 'Mock', who: 'mock', kind: 'account', plan: 'Free' }],
+    order: [{ id: accountId, provider: 'mock', name: 'Mock', who: 'mock', kind: 'account', plan: 'Free' }],
     tries: [],
     done: false,
   };
   routes.set(String(id), route);
 
   setTimeout(() => {
-    route.tries.push({ id: route.order[0].id, model: route.model, start: new Date().toISOString(), done: false });
+    route.tries.push({ id: accountId, model: route.model, start: new Date().toISOString(), done: false });
     setTimeout(() => {
       const attempt = route.tries[0];
       if (Math.random() < 0.18) {
         attempt.done = true; attempt.status = 500; attempt.fail = true;
         setTimeout(() => {
-          route.tries.push({ id: route.order[0].id, model: route.model, start: new Date().toISOString(), done: true, status: 200, ms: 2100 });
+          route.tries.push({ id: accountId, model: route.model, start: new Date().toISOString(), done: true, status: 200, ms: 2100 });
           route.done = true; route.status = 200;
         }, 1600);
       } else {

@@ -592,6 +592,9 @@ function startDemo() {
   const quiet = process.argv.includes('--idle');
   const spawnRequest = () => {
     const agent = pick(DEMO_AGENTS);
+    // One agent demos the merged round trip: when the account belongs to the
+    // same vendor, the card collapses to a single chip and wire.
+    const accountId = agent === 'dsh' ? 'dsh/self-model' : pick(accounts);
     const route = {
       seq: seq++,
       id: 1792862888000 + nextId++,
@@ -599,7 +602,7 @@ function startDemo() {
       agent,
       provider: 'demo',
       model: 'demo/deepseek-v4.1-flash',
-      order: [{ id: pick(accounts), provider: 'demo', name: 'Demo', who: 'demo', kind: 'account', plan: 'Free' }],
+      order: [{ id: accountId, provider: 'demo', name: 'Demo', who: 'demo', kind: 'account', plan: 'Free' }],
       tries: [],
       done: false,
     };

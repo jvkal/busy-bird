@@ -351,7 +351,12 @@ button.mini:hover { background: rgba(255, 255, 255, 0.14); }
   filter: drop-shadow(0 0 3px var(--agent, #a18bff));
 }
 
-.flying-bird.back .packet { opacity: 0; }
+.flying-bird.back .packet {
+  /* The answer rides home as a different light than the request did. */
+  fill: #fff3c4;
+  filter: drop-shadow(0 0 4px #ffd76b);
+}
+
 .flying-bird.failed .packet {
   fill: #ff6b6b;
   filter: drop-shadow(0 0 3px #ff6b6b);

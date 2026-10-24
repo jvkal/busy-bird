@@ -54,6 +54,24 @@ function colorFor(key) {
 const requestActive = route => Boolean(route) && (!route.done || (route.tries || []).some(item => !item.done));
 const groupKeyOf = route => `${route.agent || 'unknown'}|${route.session || route.conv || ''}`;
 
+const capFirst = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+function accountOf(route) {
+  const attempt = (route.tries || []).at(-1);
+  return attempt?.id || route.order?.[0]?.id || route.provider || '';
+}
+
+// When the account on the right belongs to the same agent or vendor as the
+// sender on the left, the trip collapses to one chip and one wire.
+function isMerged(route) {
+  const agent = String(route?.agent || '').toLowerCase();
+  if (!agent) return false;
+  const id = String(accountOf(route)).toLowerCase();
+  if (!id) return false;
+  const provider = String(route?.order?.[0]?.provider || route?.provider || '').toLowerCase();
+  return id === agent || provider === agent || id.split('/')[0] === agent;
+}
+
 const succeeded = attempt => Number(attempt?.status) < 400 && !attempt.fail;
 
 function fmtTokens(value) {
@@ -156,6 +174,7 @@ function recomputeGroups() {
   }
   let lane = 0;
   for (const group of state.groups.values()) group.lane = Math.min(lane++, MAX_LANES - 1);
+  for (const group of state.groups.values()) group.merged = isMerged(latestRouteOf(group) || {});
 }
 
 function latestRouteOf(group) {
@@ -170,13 +189,13 @@ function latestRouteOf(group) {
 // ── stage rendering ─────────────────────────────────────────────────────────
 
 function chipLabel(agent) {
-  return shortName(agent, 9);
+  return capFirst(shortName(agent, 9));
 }
 
 function accountLabel(route) {
   const attempt = (route.tries || []).at(-1);
   const id = attempt?.id || route.order?.[0]?.id;
-  return id ? shortName(id) : '…';
+  return id ? capFirst(shortName(id)) : '…';
 }
 
 function render() {
@@ -187,31 +206,39 @@ function render() {
     const y = laneY(group.lane);
     const active = group.routes.some(id => requestActive(state.routes.get(String(id))));
     const inD = wireCurve({ x: AGENT_X, y }, { x: HUB.left, y: HUB.y, tx: 1, ty: 0 });
-    const outD = wireCurve({ x: HUB.right, y: HUB.y, tx: 1, ty: 0 }, { x: ACCOUNT_X, y });
-    if (active) {
+    if (active && !group.merged) {
       // a soft underglow under the live dashes
-      const inGlow = svgEl('path', { class: 'wire glow', d: inD });
-      const outGlow = svgEl('path', { class: 'wire glow', d: outD });
-      inGlow.style.setProperty('--c', accent);
+      const outGlow = svgEl('path', { class: 'wire glow', d: wireCurve({ x: HUB.right, y: HUB.y, tx: 1, ty: 0 }, { x: ACCOUNT_X, y }) });
       outGlow.style.setProperty('--c', accent);
-      wires.append(inGlow, outGlow);
+      wires.append(outGlow);
+    }
+    if (active) {
+      const inGlow = svgEl('path', { class: 'wire glow', d: inD });
+      inGlow.style.setProperty('--c', accent);
+      wires.append(inGlow);
     }
     const inPath = svgEl('path', { class: `wire${active ? ' live' : ''}`, d: inD });
-    const outPath = svgEl('path', { class: `wire${active ? ' live' : ' resting'}`, d: outD });
     inPath.style.setProperty('--c', accent);
-    outPath.style.setProperty('--c', accent);
-    wires.append(inPath, outPath);
-    // a burrow at each end: the courier tucks itself in there to wait
+    wires.append(inPath);
+    // a burrow at the wire's end: the courier tucks itself in there to wait.
+    // A merged trip comes back to the same burrow, so there is only one.
     const inBurrow = burrow(AGENT_X, y);
-    const outBurrow = burrow(ACCOUNT_X, y);
     inBurrow.style.setProperty('--c', accent);
-    outBurrow.style.setProperty('--c', accent);
-    wires.append(inBurrow, outBurrow);
+    wires.append(inBurrow);
+    if (!group.merged) {
+      const outPath = svgEl('path', { class: `wire${active ? ' live' : ' resting'}`, d: wireCurve({ x: HUB.right, y: HUB.y, tx: 1, ty: 0 }, { x: ACCOUNT_X, y }) });
+      outPath.style.setProperty('--c', accent);
+      wires.append(outPath);
+      const outBurrow = burrow(ACCOUNT_X, y);
+      outBurrow.style.setProperty('--c', accent);
+      wires.append(outBurrow);
+    }
 
     const route = latestRouteOf(group);
     const count = group.routes.length;
     const agentText = chipLabel(group.agent) + (count > 1 ? ` ×${count}` : '');
-    chips.append(chip(group, accent, agentText, accountLabel(route || {}), route?.model || '', route?.agent || ''));
+    chips.append(chip(group, accent, agentText,
+      group.merged ? '' : accountLabel(route || {}), route?.model || '', route?.agent || ''));
   }
   const hubActive = [...state.routes.values()].some(requestActive);
   hubLayer.classList.toggle('active', hubActive);
@@ -253,7 +280,8 @@ function chip(group, accent, agentText, accountText, title, agentName) {
     tip.textContent = `${agentName}\n${title}`;
     g.append(tip);
   }
-  g.append(agentBox, agentDot, agentLabel, accountBox, accountNode);
+  g.append(agentBox, agentDot, agentLabel);
+  if (accountText) g.append(accountBox, accountNode);
   return g;
 }
 
@@ -393,6 +421,7 @@ const LEGS_TO_HUB = [{ path: 'in' }];
 const LEGS_TO_ACCOUNT = [{ path: 'through' }, { path: 'out' }];
 const LEGS_RETURN = [{ path: 'out', reverse: true }, { path: 'through', reverse: true }, { path: 'in', reverse: true }];
 const LEGS_BACK_TO_HUB = [{ path: 'out', reverse: true }];
+const LEGS_HUB_HOME = [{ path: 'in', reverse: true }];
 
 // The crossing of the hub happens halfway through the through-leg. Read
 // lazily, AFTER the legs are built: the previous spec's legs are stale here.
@@ -466,7 +495,7 @@ function startFlight(route) {
     id, groupKey: key, route, bird, flier, packet, guides, paths,
     lane: group ? group.lane : 0, geoKey: '', legs: [], length: 0,
     aim: null, aimFlip: false, cancelled: false, dismissing: false,
-    accent: color, holePacket: null,
+    accent: color, holePacket: null, merged: Boolean(group?.merged),
   };
   flights.set(id, flight);
   window.requestAnimationFrame(() => { bird.style.opacity = '1'; });
@@ -492,6 +521,33 @@ async function runFlight(flight) {
         await waitFor(flight, r => (r.tries || [])[index] || r.done);
         if (flight.cancelled) return;
         if (flight.route.done && !(flight.route.tries || [])[index]) { fadeOut(flight); return; }
+      }
+      // Same agent and account: one wire, one burrow — the answer simply
+      // comes back the way the request went in.
+      if (flight.merged) {
+        await waitFor(flight, r => Boolean((r.tries || [])[index]?.done));
+        if (flight.cancelled) return;
+        const mergedAttempt = flight.route.tries[index];
+        if (succeeded(mergedAttempt)) {
+          await waitFor(flight, r => r.done);
+          if (flight.cancelled) return;
+          setPose(flight, 'back');
+          if (!await travel(flight, LEGS_HUB_HOME)) return;
+          fadeOut(flight);
+          return;
+        }
+        const mergedNext = (flight.route.tries || []).length > index + 1;
+        if (!mergedNext && flight.route.done) {
+          setPose(flight, 'back failed');
+          if (!await travel(flight, LEGS_HUB_HOME)) return;
+          fadeOut(flight);
+          return;
+        }
+        setPose(flight, 'fly failed');
+        holdAt(flight, 'hub');
+        index += 1;
+        await waitFor(flight, r => Boolean((r.tries || [])[index]));
+        continue;
       }
       setPose(flight, 'fly');
       if (!await travel(flight, LEGS_TO_ACCOUNT)) return;
