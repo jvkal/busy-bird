@@ -408,6 +408,7 @@ button.mini:hover { background: rgba(255, 255, 255, 0.14); }
 .flying-bird .packet { opacity: 0; }
 
 .flying-bird.back .packet {
+  opacity: 1;
   fill: #fff3c4;
   filter: drop-shadow(0 0 4px #ffd76b);
 }
@@ -584,6 +585,18 @@ body.docked .rz { display: none; }
 }
 
 .isl-light .tail { opacity: 0.4; }
+
+.isl-bird { transition: opacity 0.2s ease; }
+
+.isl-bird .flier { transition: opacity 0.25s ease; }
+
+.isl-bird.back .packet { opacity: 1; }
+
+.isl-hold {
+  fill: var(--c, #a18bff);
+  filter: drop-shadow(0 0 3px var(--c, #a18bff));
+  animation: packetWait 1.3s ease-in-out infinite;
+}
 
 .isl-track {
   stroke: rgba(255, 255, 255, 0.22);

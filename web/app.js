@@ -396,6 +396,93 @@ const islLights = $('islLights');
 const islLeft = $('islLeft');
 const islRight = $('islRight');
 const islText = $('islText');
+const islBirds = $('islBirds');
+const islPacket = $('islPacket');
+
+let islBird = null;
+
+function ensureIslandBird() {
+  if (islBird) return islBird;
+  const g = svgEl('g', { class: 'flying-bird isl-bird perched' });
+  g.style.opacity = '1';
+  const flier = svgEl('g', { class: 'flier' });
+  flier.innerHTML = FLIER;
+  const packet = svgEl('circle', { class: 'packet', r: 2 });
+  g.append(flier, packet);
+  islBirds.append(g);
+  islBird = { g, flier, packet };
+  return islBird;
+}
+
+const islSleep = ms => new Promise(r => window.setTimeout(r, ms));
+
+function islFly(fromX, toX, ms) {
+  return new Promise((resolve) => {
+    const started = performance.now();
+    const step = (now) => {
+      const t = Math.max(0, Math.min(1, (now - started) / ms));
+      const k = glideProgress(t);
+      const x = fromX + (toX - fromX) * k;
+      const y = 21 - Math.sin(k * Math.PI) * 4;
+      const flip = toX < fromX ? -1 : 1;
+      islBird.g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${flip * 0.4} 0.4)`);
+      if (t < 1) requestAnimationFrame(step); else resolve();
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+function islWait(predicate) {
+  return new Promise((r) => {
+    const timer = window.setInterval(() => {
+      if (predicate()) { window.clearInterval(timer); r(); }
+    }, 250);
+  });
+}
+
+function islPerch() {
+  islBird.g.classList.add('perched');
+  islBird.g.setAttribute('transform', 'translate(34 3) scale(0.4)');
+}
+
+// The island's own courier: it lives on the left brand chip, flies empty to
+// the vendor when a request starts, tucks in, and rides home with the golden
+// answer once magpie is done.
+async function islandBirdLoop() {
+  const bird = ensureIslandBird();
+  islPerch();
+  for (;;) {
+    await islSleep(400);
+    if (!document.body.classList.contains('docked')
+      || document.body.classList.contains('expanded')) continue;
+    const active = [...state.routes.values()].filter(requestActive);
+    if (!active.length) { islPerch(); continue; }
+    const route = active.at(-1);
+    const id = String(route.id);
+    const group = state.groups.get(groupKeyOf(route));
+    const accent = group ? accentOf(group) : '#a18bff';
+    bird.g.style.setProperty('--agent', accent);
+    bird.g.classList.remove('perched');
+    bird.flier.style.opacity = '1';
+    await islFly(38, 192, 1100);
+    // tucked into the vendor chip: the request glows there while waiting
+    bird.flier.style.opacity = '0';
+    islPacket.style.setProperty('--c', accent);
+    islPacket.setAttribute('transform', 'translate(196 21)');
+    islPacket.style.opacity = '1';
+    await islWait(() => {
+      const fresh = state.routes.get(id);
+      return !fresh || fresh.done;
+    });
+    // ride home with the golden answer
+    islPacket.style.opacity = '0';
+    bird.g.classList.add('back');
+    bird.flier.style.opacity = '1';
+    await islFly(192, 38, 1500);
+    bird.g.classList.remove('back');
+    islPerch();
+  }
+}
 
 function updateIsland() {
   if (!islLights) return;
@@ -1028,4 +1115,5 @@ renderDot();
 renderPill();
 reportHitAreas();
 window.setTimeout(reportHitAreas, 800);
+islandBirdLoop();
 window.bird?.ready();
