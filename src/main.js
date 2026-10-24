@@ -376,6 +376,26 @@ function createWindow() {
     const message = typeof ev?.message === 'string' ? ev.message : args[2];
     if (level >= 2) log(`renderer: ${message}`);
   });
+  // Right-click anywhere the card takes the pointer (top bar, island,
+  // expanded stage): a compact menu with the skin switcher.
+  win.webContents.on('context-menu', () => {
+    Menu.buildFromTemplate([
+      { label: '换装', submenu: COURIERS.map(([value, label]) => ({
+        label,
+        type: 'radio',
+        checked: (settings.courier || 'bird') === value,
+        click: () => {
+          settings.courier = value;
+          saveSettings();
+          send('bird:settings', publicSettings());
+        },
+      })) },
+      { label: '灵动岛模式', type: 'checkbox', checked: Boolean(settings.docked), click: () => setDocked(!settings.docked) },
+      { label: '恢复默认位置和大小', click: () => resetWindowPlace() },
+      { type: 'separator' },
+      { label: '退出', click: () => quitForGood() },
+    ]).popup({ window: win });
+  });
   win.loadFile(path.join(__dirname, '..', 'web', 'index.html'));
 
   win.once('ready-to-show', () => win.showInactive());
@@ -542,6 +562,16 @@ function refreshTrayMenu() {
         send('bird:settings', publicSettings());
       },
     })) },
+    { label: '换装', submenu: COURIERS.map(([value, label]) => ({
+      label,
+      type: 'radio',
+      checked: (settings.courier || 'bird') === value,
+      click: () => {
+        settings.courier = value;
+        saveSettings();
+        send('bird:settings', publicSettings());
+      },
+    })) },
     { label: '尺寸', submenu: [[220, '小'], [260, '中'], [320, '大']].map(([width, label]) => ({
       label: `${label}（宽 ${width}）`,
       type: 'radio',
@@ -668,6 +698,8 @@ function startDemo() {
 
 // ── ipc ─────────────────────────────────────────────────────────────────────
 
+const COURIERS = [['bird', '小鸟'], ['car', '小车'], ['kiss', '亲嘴'], ['monkey', '猴子']];
+
 function publicSettings() {
   return {
     topmost: Boolean(settings.topmost),
@@ -676,6 +708,7 @@ function publicSettings() {
     opacity: Math.min(1, Math.max(0.05, Number(settings.opacity) || 0.34)),
     themeColor: typeof settings.themeColor === 'string' ? settings.themeColor : null,
     docked: Boolean(settings.docked),
+    courier: COURIERS.some(([value]) => value === settings.courier) ? settings.courier : 'bird',
   };
 }
 
@@ -744,7 +777,7 @@ ipcMain.on('bird:save-settings', (_event, patch) => {
   saveSettings();
   send('bird:settings', publicSettings());
 });
-ipcMain.on('window:reset', () => {
+function resetWindowPlace() {
   const area = screen.getPrimaryDisplay().workArea;
   settings.width = WIDTH;
   settings.height = HEIGHT;
@@ -760,7 +793,9 @@ ipcMain.on('window:reset', () => {
     win.setBounds({ x: bounds.x, y: bounds.y, width: WIDTH, height: HEIGHT }, false);
   }
   send('bird:settings', publicSettings());
-});
+}
+
+ipcMain.on('window:reset', resetWindowPlace);
 ipcMain.on('bird:period-next', () => {
   const index = PERIODS.indexOf(settings.usagePeriod);
   settings.usagePeriod = PERIODS[(index + 1) % PERIODS.length];

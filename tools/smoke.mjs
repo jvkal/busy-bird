@@ -61,13 +61,11 @@ async function main() {
   await sleep(150);
   check('panel closes', await evaluate('!document.getElementById("panel").classList.contains("open")'));
 
-  // 4. skin dot cycles through all skins and updates the title
-  const seen = new Set();
-  for (let i = 0; i < 4; i++) {
-    await evaluate('document.getElementById("skinDot").click()');
-    seen.add(await evaluate('document.getElementById("skinDot").title'));
-  }
-  check('skin dot cycles 4 skins', seen.size === 4, [...seen].join(','));
+  // 4. skins: the topbar dot is gone (switching moved to right-click menu),
+  //    the island courier exists, and the skin stylesheet is loaded
+  check('skin dot removed from topbar', await evaluate('!document.getElementById("skinDot")'));
+  check('island courier element exists', await evaluate('document.querySelectorAll(".isl-bird .flier > g").length > 0'));
+  check('skin css loaded', await evaluate('document.querySelectorAll("style,link[href*=styles]").length > 0 && Boolean(document.querySelector(".isl-bird"))'));
 
   // 5. stats card opens and fills from the usage API
   await evaluate('document.getElementById("statDot").click()');
@@ -85,7 +83,7 @@ async function main() {
   const docked = await evaluate('document.body.classList.contains("docked")');
   if (docked) {
     check('island visible when docked', await evaluate('getComputedStyle(document.getElementById("island")).display !== "none"'));
-    check('island has end icons', await evaluate('document.querySelectorAll(".isl-end svg, .isl-end .isl-fallback").length >= 1'));
+    check('island end groups present', await evaluate('document.querySelectorAll(".isl-end").length === 2'));
   } else {
     check('normal mode: stage visible', await evaluate('getComputedStyle(document.getElementById("sky")).display !== "none"'));
   }

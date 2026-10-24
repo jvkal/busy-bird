@@ -1033,15 +1033,6 @@ topbar.addEventListener('mousedown', (event) => {
   window.bird?.dragStart();
 });
 
-const skinDot = $('skinDot');
-skinDot.addEventListener('click', () => {
-  const next = nextSkin(state.settings?.courier);
-  state.settings = { ...state.settings, courier: next };
-  skinDot.textContent = SKINS[next].emoji;
-  skinDot.title = `换装：${SKINS[next].label}`;
-  savePatch({ courier: next });
-});
-
 const statsCard = $('statsCard');
 function toggleStats(open) {
   statsCard.classList.toggle('open', open);
