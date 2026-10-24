@@ -360,6 +360,9 @@ const islText = $('islText');
 const islBirds = $('islBirds');
 const islPacket = $('islPacket');
 let islEndKeys = { left: null, right: null };
+let islSessionIdx = 0;
+let islSessionCount = 0;
+let islAutoTimer = null;
 
 let islBird = null;
 
@@ -385,7 +388,7 @@ function islFly(fromX, toX, ms) {
       const t = Math.max(0, Math.min(1, (now - started) / ms));
       const k = glideProgress(t);
       const x = fromX + (toX - fromX) * k;
-      const y = 19.8 - Math.sin(k * Math.PI) * 4;
+      const y = 28.8 - Math.sin(k * Math.PI) * 4;
       const flip = toX < fromX ? -1 : 1;
       islBird.g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${flip * 0.4} 0.4)`);
       if (t < 1) requestAnimationFrame(step); else resolve();
@@ -418,7 +421,11 @@ async function islandBirdLoop() {
     await islSleep(400);
     if (!document.body.classList.contains('docked')
       || document.body.classList.contains('expanded')) continue;
-    const active = [...state.routes.values()].filter(requestActive);
+    const sessions = [...state.groups.values()].slice(0, 3);
+    const current = sessions[islSessionIdx % Math.max(sessions.length, 1)] || null;
+    const active = current
+      ? current.routes.map(id2 => state.routes.get(String(id2))).filter(requestActive)
+      : [];
     if (!active.length) {
       if (bird.visible) {
         bird.g.style.opacity = '0';
@@ -428,8 +435,7 @@ async function islandBirdLoop() {
     }
     const route = active.at(-1);
     const id = String(route.id);
-    const group = state.groups.get(groupKeyOf(route));
-    const accent = group ? accentOf(group) : '#a18bff';
+    const accent = current ? accentOf(current) : '#a18bff';
     bird.g.style.setProperty('--agent', accent);
     if (bird.skin !== currentSkin()) {
       bird.skin = currentSkin();
@@ -437,7 +443,7 @@ async function islandBirdLoop() {
     }
     if (!bird.visible) {
       // appear on the wire, just off the agent's icon
-      bird.g.setAttribute('transform', 'translate(42 19.8) scale(0.4)');
+      bird.g.setAttribute('transform', 'translate(42 28.8) scale(0.4)');
       bird.g.style.opacity = '1';
       bird.visible = true;
       await islSleep(250);
@@ -447,7 +453,7 @@ async function islandBirdLoop() {
     // tucked into the vendor chip: the request glows there while waiting
     bird.flier.style.opacity = '0';
     islPacket.style.setProperty('--c', accent);
-    islPacket.setAttribute('transform', 'translate(196 21)');
+    islPacket.setAttribute('transform', 'translate(196 30)');
     islPacket.style.opacity = '1';
     // the vendor beats its icon once: request received
     flashClass(islRight, 'pulse-once', 600);
@@ -526,6 +532,43 @@ function setIslandEnd(anchor, key, accent) {
     spin.append(svgEl('circle', { class: 'isl-spin-arc', cx: 8, cy: -8, r: 3.2 }));
     anchor.append(spin);
   }
+}
+
+function drawIslandDots(sessions) {
+  const dots = $('islDots');
+  if (!dots) return;
+  dots.innerHTML = '';
+  if (sessions.length <= 1) return;
+  sessions.forEach((session, i) => {
+    const dot = svgEl('circle', {
+      class: `isl-dot${i === islSessionIdx ? ' on' : ''}`,
+      cx: 115 + (i - (sessions.length - 1) / 2) * 12,
+      cy: 40, r: 1.6,
+    });
+    dot.addEventListener('click', (event) => {
+      event.stopPropagation();
+      islSessionIdx = i;
+      updateIsland();
+    });
+    dots.append(dot);
+  });
+}
+
+function manageIslandAutoAdvance(sessions) {
+  clearInterval(islAutoTimer);
+  islAutoTimer = null;
+  if (sessions.length > 1) {
+    islAutoTimer = setInterval(() => {
+      islSessionIdx = (islSessionIdx + 1) % sessions.length;
+      updateIsland();
+    }, 5000);
+  }
+}
+
+function islandSlide(dir) {
+  if (islSessionCount <= 1) return;
+  islSessionIdx = (islSessionIdx + dir + islSessionCount) % islSessionCount;
+  updateIsland();
 }
 
 function wire(d, accent, kind, lit) {
@@ -1109,11 +1152,17 @@ window.bird?.onStats((data) => {
   renderStats(data);
 });
 
-// Dragging the island itself undocks it from the screen top.
+// Dragging the island itself undocks it from the screen top; the wheel and
+// double-click slide between the active sessions.
 island.addEventListener('mousedown', (event) => {
   event.preventDefault();
   window.bird?.dragStart();
 });
+island.addEventListener('wheel', (event) => {
+  event.preventDefault();
+  islandSlide(event.deltaY > 0 ? 1 : -1);
+}, { passive: false });
+island.addEventListener('dblclick', () => islandSlide(1));
 
 window.bird?.onTrace(applyTrace);
 window.bird?.onConnection((connection) => {

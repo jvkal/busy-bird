@@ -502,7 +502,7 @@ body.snap-y::after { opacity: 1; }
   left: 50%;
   margin-left: -115px;
   width: 230px;
-  height: 30px;
+  height: 44px;
   border-radius: 16px;
   background: rgba(4, 4, 8, 0.97);
   border: 1px solid transparent;
@@ -612,7 +612,20 @@ body.docked:not(.expanded) {
 
 @keyframes islMove {
   0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(158px); }
+  50% { transform: translateX(154px); }
+}
+
+.isl-dot {
+  fill: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+}
+
+.isl-dot.on { fill: var(--c, #a18bff); }
+
+.isl-end.slide-in { animation: islSlideIn 0.4s ease; }
+
+@keyframes islSlideIn {
+  from { opacity: 0; }
 }
 
 .isl-text {

@@ -295,7 +295,7 @@ function watchHover() {
     if (settings.docked) {
       const inWindow = point.x >= bounds.x && point.x <= bounds.x + bounds.width
         && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
-      const onIsland = point.y <= bounds.y + 30 && inWindow;
+      const onIsland = point.y <= bounds.y + 48 && inWindow;
       const wantExpand = expandState ? inWindow : onIsland;
       setHoverInteractive(wantExpand, wantExpand ? 'control' : null);
       if (expandState !== wantExpand) {

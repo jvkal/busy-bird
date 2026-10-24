@@ -51,15 +51,16 @@
     </div>
   </div>
 
-  <div id="island" class="hot" title="拖动可离开屏幕顶部">
-    <svg viewBox="0 0 230 30" width="230" height="30" aria-hidden="true">
-      <line class="isl-track" x1="38" y1="21" x2="192" y2="21"/>
+  <div id="island" class="hot" title="拖动可离开屏幕顶部 · 滚轮/点击切换会话">
+    <svg viewBox="0 0 230 44" width="230" height="44" aria-hidden="true">
+      <text class="isl-text" id="islText" x="115" y="14" text-anchor="middle"></text>
+      <line class="isl-track" x1="38" y1="30" x2="192" y2="30"/>
       <g id="islLights"></g>
       <circle id="islPacket" class="isl-hold" r="2.4" opacity="0"/>
       <g id="islBirds"></g>
-      <g class="isl-end" id="islLeft" transform="translate(21 15)"></g>
-      <g class="isl-end" id="islRight" transform="translate(209 15)"></g>
-      <text class="isl-text" id="islText" x="115" y="14" text-anchor="middle"></text>
+      <g class="isl-end" id="islLeft" transform="translate(38 30)"></g>
+      <g class="isl-end" id="islRight" transform="translate(192 30)"></g>
+      <g id="islDots"></g>
     </svg>
   </div>
 
