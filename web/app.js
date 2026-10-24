@@ -6,7 +6,7 @@
 
 import { wireCurve, hubCurve, glideProgress } from './flight-path.mjs';
 import { MAGPIE_PATH } from './magpie-path.mjs';
-import { SKINS, SKIN_ORDER, courierSkin, nextSkin } from './skins.mjs';
+import { SKINS, SKIN_ORDER, courierSkin, nextSkin, KISS_GIRL, KISS_HEART } from './skins.mjs';
 
 const NS = 'http://www.w3.org/2000/svg';
 const $ = (id) => document.getElementById(id);
@@ -382,13 +382,21 @@ function ensureIslandBird() {
 const islSleep = ms => new Promise(r => window.setTimeout(r, ms));
 
 function islFly(fromX, toX, ms) {
+  // The bird arcs over the wire; wheeled and walking couriers stay on it,
+  // each with its own gait.
+  const skin = currentSkin();
+  const ground = skin !== 'bird';
   return new Promise((resolve) => {
     const started = performance.now();
     const step = (now) => {
       const t = Math.max(0, Math.min(1, (now - started) / ms));
       const k = glideProgress(t);
       const x = fromX + (toX - fromX) * k;
-      const y = 28.8 - Math.sin(k * Math.PI) * 4;
+      let y;
+      if (!ground) y = 28.8 - Math.sin(k * Math.PI) * 4;
+      else if (skin === 'car') y = 28.8 + Math.sin(k * Math.PI * 5) * 0.6;
+      else if (skin === 'monkey') y = 28.8 - Math.abs(Math.sin(k * Math.PI * 6)) * 1.1;
+      else y = 28.8 - Math.abs(Math.sin(k * Math.PI * 8)) * 0.8;
       const flip = toX < fromX ? -1 : 1;
       islBird.g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${flip * 0.4} 0.4)`);
       if (t < 1) requestAnimationFrame(step); else resolve();
@@ -450,6 +458,31 @@ async function islandBirdLoop() {
     }
     bird.flier.style.opacity = '1';
     await islFly(42, 192, 1100);
+    const kiss = bird.skin === 'kiss';
+    if (kiss) {
+      // The boy walks up to the girl waiting at the vendor's end; they kiss,
+      // the request glows on the wire, and he walks home when it's done.
+      ensureIslandCast();
+      islGirl.style.opacity = '1';
+      islHeart.style.setProperty('--c', accent);
+      islHeart.style.opacity = '1';
+      flashClass(islHeart, 'pop', 900);
+      islPacket.style.setProperty('--c', accent);
+      islPacket.setAttribute('transform', 'translate(196 30)');
+      islPacket.style.opacity = '1';
+      await islWait(() => {
+        const fresh = state.routes.get(id);
+        return !fresh || fresh.done;
+      });
+      islHeart.style.opacity = '0';
+      bird.g.classList.add('back');
+      await islFly(192, 42, 1500);
+      bird.g.classList.remove('back');
+      islGirl.style.opacity = '0';
+      bird.g.style.opacity = '0';
+      bird.visible = false;
+      continue;
+    }
     // tucked into the vendor chip: the request glows there while waiting
     bird.flier.style.opacity = '0';
     islPacket.style.setProperty('--c', accent);
@@ -516,6 +549,20 @@ function updateIsland() {
   text.textContent = active.length
     ? `${active.length} 个请求`
     : `${fmtTokens(usageTotal(state.usage))} tok`;
+}
+
+let islGirl = null;
+let islHeart = null;
+
+function ensureIslandCast() {
+  if (islGirl) return;
+  islGirl = svgEl('g', { class: 'isl-cast', opacity: '0' });
+  islGirl.innerHTML = KISS_GIRL;
+  islGirl.setAttribute('transform', 'translate(178 25)');
+  islHeart = svgEl('g', { class: 'isl-cast', opacity: '0' });
+  islHeart.innerHTML = KISS_HEART;
+  islHeart.setAttribute('transform', 'translate(181 13)');
+  islBirds.append(islGirl, islHeart);
 }
 
 function setIslandEnd(anchor, key, accent) {
@@ -773,7 +820,7 @@ function startFlight(route) {
   const bird = svgEl('g', { class: 'flying-bird' });
   bird.style.setProperty('--agent', color);
   bird.style.opacity = '0';
-  const flier = svgEl('g', { class: 'flier' });
+  const flier = svgEl('g', { class: `flier f-${currentSkin()}` });
   flier.innerHTML = SKINS[currentSkin()].build();
   const packet = svgEl('circle', { class: 'packet', r: 3, cx: 0, cy: 0 });
   bird.append(flier, packet);

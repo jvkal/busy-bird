@@ -704,45 +704,55 @@ body.docked:not(.expanded) {
   to { transform: rotate(360deg); }
 }
 
-.skin-kiss .k-head { fill: #e8b4b8; }
+/* The kiss story: the boy walks over, the girl waits at the vendor's end,
+   one heart between them while they are together. */
+.skin-kiss .k-boy .k-head { fill: #f0c8a0; }
 
-.skin-kiss .k-body { fill: #d96a7b; }
+.skin-kiss .k-boy .k-hair { fill: #3a3a44; }
 
-.skin-kiss .k-heart {
-  fill: #ff6b8a;
-  opacity: 0;
-  filter: drop-shadow(0 0 2px #ff6b8a);
+.skin-kiss .k-boy .k-shirt { fill: #5a8adf; }
+
+.skin-kiss .k-legs line {
+  stroke: #3a3a44;
+  stroke-width: 1.2;
+  stroke-linecap: round;
 }
 
-.flying-bird:not(.held) .skin-kiss .k-heart {
-  animation: heartPop 1.4s ease-in-out infinite;
+.flying-bird:not(.held) .skin-kiss .k-leg { transform-box: fill-box; transform-origin: top center; animation: legA 0.28s ease-in-out infinite alternate; }
+
+.flying-bird:not(.held) .skin-kiss .k-leg2 { transform-box: fill-box; transform-origin: top center; animation: legB 0.28s ease-in-out infinite alternate; }
+
+@keyframes legA {
+  to { transform: rotate(26deg); }
+}
+
+@keyframes legB {
+  to { transform: rotate(-26deg); }
+}
+
+.skin-kiss .k-girl,
+.skin-kiss .k-heart { opacity: 0; }
+
+/* While waiting at the account the boy stays with the girl, heart up. */
+.flying-bird.held .f-kiss { opacity: 1; }
+
+.flying-bird.held .f-kiss .k-girl {
+  opacity: 1;
+  transform: translate(10px, -4px);
+}
+
+.flying-bird.held .f-kiss .k-heart {
+  opacity: 1;
+  fill: #ff6b8a;
+  filter: drop-shadow(0 0 2px #ff6b8a);
+  transform: translate(5px, -14px);
+  animation: heartPop 0.6s ease-out 1;
 }
 
 @keyframes heartPop {
-  0%, 55%, 100% { opacity: 0; transform: translateY(2px) scale(0.6); }
-  72% { opacity: 1; transform: translateY(0) scale(1.12); }
-}
-
-.skin-kiss .k-left {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: kLeanL 1.4s ease-in-out infinite;
-}
-
-.skin-kiss .k-right {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: kLeanR 1.4s ease-in-out infinite;
-}
-
-@keyframes kLeanL {
-  0%, 50%, 100% { transform: translateX(0); }
-  70% { transform: translateX(2.4px); }
-}
-
-@keyframes kLeanR {
-  0%, 50%, 100% { transform: translateX(0); }
-  70% { transform: translateX(-2.4px); }
+  0% { transform: scale(0.3); opacity: 0; }
+  55% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .skin-monkey .m-body,
@@ -765,7 +775,40 @@ body.docked:not(.expanded) {
   opacity: 0;
 }
 
-.flying-bird.held .skin-monkey .banana { opacity: 1; }
+.flying-bird.held .skin-monkey .banana,
+.flying-bird.back .skin-monkey .banana { opacity: 1; }
+
+/* The island's kiss cast: the girl at the vendor end and their heart. */
+.isl-cast { transition: opacity 0.3s ease; }
+
+.isl-cast .g-head { fill: #f0c8a0; }
+
+.isl-cast .g-hair { fill: #6b4a2b; }
+
+.isl-cast .g-dress { fill: #d96a7b; }
+
+.isl-cast .k-boy .k-head { fill: #f0c8a0; }
+
+.isl-cast .k-boy .k-hair { fill: #3a3a44; }
+
+.isl-cast .k-boy .k-shirt { fill: #5a8adf; }
+
+.isl-cast .k-legs line {
+  stroke: #3a3a44;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+}
+
+.isl-heart-big {
+  fill: #ff6b8a;
+  filter: drop-shadow(0 0 2px #ff6b8a);
+}
+
+.isl-cast.pop .isl-heart-big {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: heartPop 0.7s ease-out 1;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .flying-bird .wing,

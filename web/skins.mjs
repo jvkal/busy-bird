@@ -39,15 +39,14 @@ export const SKINS = {
     emoji: '💋',
     build: () => `
       <g class="skin-kiss">
-        <g class="k-p k-left">
-          <circle class="k-head" cx="-8.5" cy="-4.5" r="3.4"/>
-          <path class="k-body" d="M-13 4.5 Q-8.5 -1.5 -4 4.5 Z"/>
+        <g class="k-boy">
+          <circle class="k-head" cx="2" cy="-6.5" r="2.9"/>
+          <path class="k-hair" d="M-1.2 -7.8 Q2 -10.4 4.9 -7.4 Q1.8 -8.8 -1.2 -7.8 Z"/>
+          <path class="k-shirt" d="M-1.8 -3.4 L2.6 -3.4 L3.2 1.2 L-2.4 1.2 Z"/>
+          <g class="k-legs"><line class="k-leg" x1="0.2" y1="1.2" x2="-1.8" y2="5.6"/><line class="k-leg2" x1="0.2" y1="1.2" x2="2.2" y2="5.6"/></g>
         </g>
-        <g class="k-p k-right">
-          <circle class="k-head" cx="8.5" cy="-4.5" r="3.4"/>
-          <path class="k-body" d="M13 4.5 Q8.5 -1.5 4 4.5 Z"/>
-        </g>
-        <path class="k-heart" d="M0 -6.8 C-1.4 -9.6 -5.2 -8.6 -5.2 -5.4 C-5.2 -2.8 -2 -0.8 0 1.2 C2 -0.8 5.2 -2.8 5.2 -5.4 C5.2 -8.6 1.4 -9.6 0 -6.8 Z"/>
+        <g class="k-girl">${KISS_GIRL}</g>
+        <path class="k-heart" d="M0 -9.2 C-1.6 -12.2 -5.8 -11 -5.8 -7.6 C-5.8 -4.8 -2.4 -2.6 0 -0.4 C2.4 -2.6 5.8 -4.8 5.8 -7.6 C5.8 -11 1.6 -12.2 0 -9.2 Z"/>
       </g>`,
   },
 
@@ -73,3 +72,13 @@ export const nextSkin = value => {
   const index = SKIN_ORDER.indexOf(courierSkin(value));
   return SKIN_ORDER[(index + 1) % SKIN_ORDER.length];
 };
+
+// The girl who waits at the vendor's end of the kiss story — reused by the
+// island's own stage so both places tell the same story.
+export const KISS_GIRL = `
+  <circle class="g-head" cx="-3" cy="-6.5" r="2.9"/>
+  <path class="g-hair" d="M-5.8 -6.2 Q-3 -10.2 0.2 -7 Q-1 -9.8 -5.8 -6.2 Z M-5.4 -5.6 Q-5.8 -2 -4.4 0.8 L-3.2 0.4 Q-4.4 -2.4 -4 -5.2 Z"/>
+  <path class="g-dress" d="M-4.6 1.6 L-1.6 -3.4 L1.8 -3.4 L1.2 4.8 L-2.8 4.8 Z"/>`;
+
+export const KISS_HEART = `
+  <path class="k-heart-big" d="M0 -9.2 C-1.6 -12.2 -5.8 -11 -5.8 -7.6 C-5.8 -4.8 -2.4 -2.6 0 -0.4 C2.4 -2.6 5.8 -4.8 5.8 -7.6 C5.8 -11 1.6 -12.2 0 -9.2 Z"/>`;
