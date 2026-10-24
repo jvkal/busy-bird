@@ -369,6 +369,7 @@ function startDemo() {
   let nextId = 1;
   let seq = 1;
   const accounts = ['workbuddy-ai/step-5', 'zen-free/deepseek-v4.1', 'team/gpt-5.2'];
+  const quiet = process.argv.includes('--idle');
   const spawnRequest = () => {
     const agent = pick(DEMO_AGENTS);
     const route = {
@@ -424,13 +425,16 @@ function startDemo() {
     }
   };
   const schedule = () => {
+    if (quiet) return;
     setTimeout(() => {
       spawnRequest();
       schedule();
     }, 2600 + Math.random() * 3400);
   };
-  spawnRequest();
-  schedule();
+  if (!quiet) {
+    spawnRequest();
+    schedule();
+  }
   usageData = {
     period: 'today', calls: 128, input: 4821000, output: 233400, cache_read: 18200000,
     cost: 1.42, now: new Date().toISOString(),

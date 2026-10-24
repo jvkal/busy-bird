@@ -13,7 +13,13 @@ const HUB = { left: 124, right: 176, y: 90, size: 40 };
 const AGENT_X = 68;
 const ACCOUNT_X = 232;
 const MAX_LANES = 3;
-const laneY = (lane) => 50 + lane * 40;
+// Lanes bunch toward the vertical center as the group count changes, so one
+// quiet request flies a straight line through the hub instead of the top rail.
+const laneY = (lane) => {
+  const count = Math.min(Math.max(state.groups.size, 1), MAX_LANES);
+  const positions = count === 1 ? [90] : count === 2 ? [64, 116] : [48, 90, 132];
+  return positions[Math.min(lane, positions.length - 1)];
+};
 const BAD = '#ff6b6b';
 const PALETTE = ['#a18bff', '#5be39a', '#61d7e7', '#ffb86b', '#ff7eb6', '#9ecbff', '#ffe066', '#7bd88f'];
 
@@ -224,7 +230,7 @@ function chip(lane, color, agentText, accountText, title, agentName) {
 
 // ── flights ─────────────────────────────────────────────────────────────────
 
-const HOLD_HUB = { x: HUB.right - 2, y: HUB.y - 17 };
+const HOLD_HUB = { x: 160, y: 67 };
 
 function anchorsOf(flight) {
   const y = laneY(flight.lane);

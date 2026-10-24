@@ -62,6 +62,7 @@ BUSY_BIRD_GATEWAY=http://127.0.0.1:3529 npm start
 
 ```bash
 npm run shot            # --demo + 截图到 docs/screenshots/bird.png
+npx electron . --shot=docs\screenshots\idle.png --demo --idle   # 只看栖息状态，不发请求
 ```
 
 ## 交互

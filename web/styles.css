@@ -175,7 +175,10 @@ body {
   filter: drop-shadow(0 0 3px #ff6b6b);
 }
 
-.flying-bird.held .wing { animation-play-state: paused; }
+.flying-bird.held .wing {
+  animation: none;
+  transform: scaleY(-0.4) skewX(8deg);
+}
 
 .flying-bird.held .flier {
   animation: heldBob 1.5s ease-in-out infinite;
