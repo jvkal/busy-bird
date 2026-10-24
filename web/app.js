@@ -401,17 +401,37 @@ function updateIsland() {
   islLights.innerHTML = '';
   const first = [...state.groups.values()][0];
   const accent = first ? accentOf(first) : '#a18bff';
-  islLeft.style.setProperty('--c', accent);
-  islRight.style.setProperty('--c', accent);
+  // The island's two ends wear the brand icons of the agent and the vendor
+  // it is talking to; plain dots only when no brand matches.
+  if (first) {
+    const route = latestRouteOf(first) || {};
+    const seat = route.order?.[0] || {};
+    const agentKey = brandKeyOf(first.agent, 'agent');
+    const vendorKey = brandKeyOf(seat.icon, 'provider')
+      || brandKeyOf(seat.provider || route.provider, 'provider');
+    setIslandEnd(islLeft, agentKey, accent);
+    setIslandEnd(islRight, vendorKey, accent);
+  }
   let i = 0;
   for (const group of state.groups.values()) {
     if (!group.routes.some(id => requestActive(state.routes.get(String(id))))) continue;
-    const dot = svgEl('circle', { class: 'isl-light', cx: 22, cy: 13, r: 2.2 });
+    const dot = svgEl('circle', { class: 'isl-light', cx: 26, cy: 13, r: 2.2 });
     dot.style.setProperty('--c', accentOf(group));
     dot.style.animationDelay = `${(-(i * 0.8)).toFixed(2)}s`;
     dot.style.animationDuration = `${(2.2 + i * 0.4).toFixed(2)}s`;
     islLights.append(dot);
     if (++i >= 3) break;
+  }
+}
+
+function setIslandEnd(anchor, key, accent) {
+  anchor.innerHTML = '';
+  anchor.style.setProperty('--c', accent);
+  const icon = brandMark(key, -8, -8, 16);
+  if (icon) {
+    anchor.append(icon);
+  } else {
+    anchor.append(svgEl('circle', { cx: 0, cy: 0, r: 3.5 }));
   }
 }
 

@@ -558,7 +558,7 @@ body.docked:not(.expanded) {
 
 body.docked .rz { display: none; }
 
-.isl-end {
+.isl-end circle {
   fill: var(--c, #a18bff);
   filter: drop-shadow(0 0 3px var(--c, #a18bff));
 }
