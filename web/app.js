@@ -1,4 +1,5 @@
-// Busy Bird renderer: a perched magpie lives on the card, and every magpie
+// Busy Bird renderer: couriers fly between the agent, the magpie hub and the
+// vendor on every request; the hub wears the magpie mark.
 // request becomes a courier bird that flies agent → magpie → account and
 // back. The flying magpie, wire curves and playback model follow
 // yimi1mi/busy-magpie (MIT); the card around them is smaller and quieter.
@@ -162,13 +163,8 @@ const pill = $('pill');
 const dot = $('dot');
 const island = $('island');
 
-// ── the card's hub: the perch magpie lives here ─────────────────────────────
+// ── the card's hub: the magpie mark lives here ──────────────────────────────
 
-const perchAnim = svgEl('g', { class: 'perch-anim' });
-perchAnim.innerHTML = FLIER;
-const perch = svgEl('g', { class: 'flying-bird perched' });
-perch.style.setProperty('--agent', '#d4d4e0');
-perch.append(perchAnim);
 const hubGlyph = svgEl('path', { class: 'hub-glyph', 'fill-rule': 'evenodd', d: MAGPIE_PATH });
 let hubBox = null;
 let hubAddrText = null;
@@ -187,27 +183,6 @@ function buildHub() {
   nameText.textContent = 'magpie';
   hubAddrText = svgEl('text', { class: 't-addr', x: (HUB.left + HUB.right) / 2, y: HUB.y + 16, 'text-anchor': 'middle' });
   hubLayer.append(glow, hubBox, glyph, nameText, hubAddrText);
-  // The perch bird stands on the hub card's top edge, facing right.
-  perch.setAttribute('transform', `translate(${HUB.right - 4} ${HUB.y - 24}) scale(0.5)`);
-  perch.style.display = 'none';
-  birdsLayer.append(perch);
-}
-
-const GESTURES = ['hop', 'flutter', 'look'];
-
-setInterval(() => {
-  if (flights.size || !state.online) return;
-  perch.classList.remove(...GESTURES);
-  void document.body.offsetHeight;
-  requestAnimationFrame(() => perch.classList.add(GESTURES[Math.floor(Math.random() * GESTURES.length)]));
-}, 5200);
-
-for (const gesture of GESTURES) {
-  perchAnim.addEventListener('animationend', (event) => {
-    if (event.animationName === 'hopUp' || event.animationName === 'flutterLift' || event.animationName === 'lookAround') {
-      perch.classList.remove(gesture);
-    }
-  });
 }
 
 // ── groups and lanes ────────────────────────────────────────────────────────
@@ -375,8 +350,6 @@ function render() {
     hubAddrText.textContent = String(state.detail || state.settings?.gateway || '')
       .replace(/^https?:\/\//, '').replace(/\/+$/, '');
   }
-  perch.style.display = flights.size ? 'none' : '';
-  perch.classList.toggle('sleep', !state.online);
   updateIsland();
 }
 
@@ -670,8 +643,7 @@ function setPose(flight, pose) {
   }
 }
 
-// The data sits in the burrow glowing; the courier perches at the mouth and
-// waits where it can be seen.
+// The request glows at the wire's end while the courier waits hidden there.
 function placeHolePacket(flight, x, y) {
   if (!flight.holePacket) {
     flight.holePacket = svgEl('circle', { class: 'hole-packet', r: 3, cx: 0, cy: 0 });
