@@ -403,14 +403,14 @@ let islBird = null;
 
 function ensureIslandBird() {
   if (islBird) return islBird;
-  const g = svgEl('g', { class: 'flying-bird isl-bird perched' });
-  g.style.opacity = '1';
+  const g = svgEl('g', { class: 'flying-bird isl-bird' });
+  g.style.opacity = '0';
   const flier = svgEl('g', { class: 'flier' });
   flier.innerHTML = FLIER;
   const packet = svgEl('circle', { class: 'packet', r: 2 });
   g.append(flier, packet);
   islBirds.append(g);
-  islBird = { g, flier, packet };
+  islBird = { g, flier, packet, visible: false };
   return islBird;
 }
 
@@ -440,31 +440,35 @@ function islWait(predicate) {
   });
 }
 
-function islPerch() {
-  // The perch is the dashed wire itself, just right of the agent's icon —
-  // a bird on a wire, never covering the brand.
-  islBird.g.classList.add('perched');
-  islBird.g.setAttribute('transform', 'translate(42 19.8) scale(0.4)');
-}
-
-// The island's own courier: it lives on the wire, flies empty to the vendor
-// when a request starts, tucks in, and rides home with the golden answer
-// once magpie is done.
+// The island's courier exists only while there is something to carry: it
+// appears on the wire, flies empty to the vendor, tucks in, and rides home
+// with the golden answer — then it is gone until the next request.
 async function islandBirdLoop() {
   const bird = ensureIslandBird();
-  islPerch();
   for (;;) {
     await islSleep(400);
     if (!document.body.classList.contains('docked')
       || document.body.classList.contains('expanded')) continue;
     const active = [...state.routes.values()].filter(requestActive);
-    if (!active.length) { islPerch(); continue; }
+    if (!active.length) {
+      if (bird.visible) {
+        bird.g.style.opacity = '0';
+        bird.visible = false;
+      }
+      continue;
+    }
     const route = active.at(-1);
     const id = String(route.id);
     const group = state.groups.get(groupKeyOf(route));
     const accent = group ? accentOf(group) : '#a18bff';
     bird.g.style.setProperty('--agent', accent);
-    bird.g.classList.remove('perched');
+    if (!bird.visible) {
+      // appear on the wire, just off the agent's icon
+      bird.g.setAttribute('transform', 'translate(42 19.8) scale(0.4)');
+      bird.g.style.opacity = '1';
+      bird.visible = true;
+      await islSleep(250);
+    }
     bird.flier.style.opacity = '1';
     await islFly(42, 192, 1100);
     // tucked into the vendor chip: the request glows there while waiting
@@ -482,7 +486,8 @@ async function islandBirdLoop() {
     bird.flier.style.opacity = '1';
     await islFly(192, 42, 1500);
     bird.g.classList.remove('back');
-    islPerch();
+    bird.g.style.opacity = '0';
+    bird.visible = false;
   }
 }
 
