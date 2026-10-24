@@ -457,13 +457,14 @@ async function islandBirdLoop() {
       await islSleep(250);
     }
     bird.flier.style.opacity = '1';
-    await islFly(42, 192, 1100);
     const kiss = bird.skin === 'kiss';
     if (kiss) {
-      // The boy walks up to the girl waiting at the vendor's end; they kiss,
-      // the request glows on the wire, and he walks home when it's done.
+      // The boy walks up to the girl waiting at the vendor's end and stops
+      // in front of her; they kiss, the request glows on the wire, and he
+      // walks home when it's done.
       ensureIslandCast();
       islGirl.style.opacity = '1';
+      await islFly(42, 168, 1100);
       islHeart.style.setProperty('--c', accent);
       islHeart.style.opacity = '1';
       flashClass(islHeart, 'pop', 900);
@@ -476,15 +477,17 @@ async function islandBirdLoop() {
       });
       islHeart.style.opacity = '0';
       bird.g.classList.add('back');
-      await islFly(192, 42, 1500);
+      await islFly(168, 42, 1500);
       bird.g.classList.remove('back');
       islGirl.style.opacity = '0';
       bird.g.style.opacity = '0';
       bird.visible = false;
       continue;
     }
-    // tucked into the vendor chip: the request glows there while waiting
-    bird.flier.style.opacity = '0';
+    await islFly(42, 192, 1100);
+    // tucked into the vendor chip: the request glows there while waiting.
+    // The monkey stays visible — it reaches for the banana.
+    bird.flier.style.opacity = bird.skin === 'monkey' ? '1' : '0';
     islPacket.style.setProperty('--c', accent);
     islPacket.setAttribute('transform', 'translate(196 30)');
     islPacket.style.opacity = '1';
@@ -561,7 +564,7 @@ function ensureIslandCast() {
   islGirl.setAttribute('transform', 'translate(178 25)');
   islHeart = svgEl('g', { class: 'isl-cast', opacity: '0' });
   islHeart.innerHTML = KISS_HEART;
-  islHeart.setAttribute('transform', 'translate(181 13)');
+  islHeart.setAttribute('transform', 'translate(172 11)');
   islBirds.append(islGirl, islHeart);
 }
 
