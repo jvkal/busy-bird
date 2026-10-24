@@ -10,8 +10,8 @@ const NS = 'http://www.w3.org/2000/svg';
 const $ = (id) => document.getElementById(id);
 
 const HUB = { left: 106, right: 154, y: 90, size: 34 };
-const AGENT_X = 62;
-const ACCOUNT_X = 198;
+const AGENT_X = 66;
+const ACCOUNT_X = 194;
 const MAX_LANES = 3;
 // Lanes bunch toward the vertical center as the group count changes, so one
 // quiet request flies a straight line through the hub instead of the top rail.
@@ -55,6 +55,58 @@ const requestActive = route => Boolean(route) && (!route.done || (route.tries ||
 const groupKeyOf = route => `${route.agent || 'unknown'}|${route.session || route.conv || ''}`;
 
 const capFirst = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+// ── brand marks (icons from busy-magpie, MIT licensed) ──────────────────────
+
+const brandSources = window.bird?.brandIcons || {};
+const brandTemplates = new Map();
+const AGENT_BRANDS = {
+  codex: 'openai', openai: 'openai', claude: 'claudecode-color', 'claude-code': 'claudecode-color',
+  claudecode: 'claudecode-color', 'claude-desktop': 'claude-color', dsh: 'deepseek-color',
+  deepseek: 'deepseek-color', cursor: 'cursor', opencode: 'opencode', gemini: 'gemini-color',
+  'gemini-cli': 'geminicli-color', geminicli: 'geminicli-color', kimi: 'kimi', 'kimi-code': 'kimi',
+  qoder: 'qoder', pi: 'pi', grok: 'grok', zcode: 'zhipu-color',
+};
+const PROVIDER_BRANDS = {
+  openai: 'openai', codex: 'openai', anthropic: 'anthropic', claude: 'claude-color',
+  google: 'google-color', gemini: 'gemini-color', deepseek: 'deepseek-color',
+  openrouter: 'openrouter', xai: 'xai', grok: 'grok', kimi: 'kimi', moonshot: 'kimi',
+  qwen: 'qwen-color', zhipu: 'zhipu-color', zcode: 'zhipu-color',
+};
+const MONO_BRANDS = new Set(['openai', 'anthropic', 'cursor', 'opencode', 'pi', 'grok', 'xai', 'openrouter', 'kimi']);
+
+function brandKeyOf(value, kind) {
+  const key = String(value || '').trim().toLowerCase().replace(/\.svg$/, '').replace(/-color$/, '').replace(/\s+/g, '-');
+  return (kind === 'provider' ? PROVIDER_BRANDS : AGENT_BRANDS)[key] || '';
+}
+
+// A nested <svg> placed at x/y and scaled to size; null when the brand is
+// unknown so the caller can fall back to a plain dot.
+function brandMark(key, x, y, size) {
+  if (!key || !brandSources[key]) return null;
+  if (!brandTemplates.has(key)) {
+    const parsed = new DOMParser().parseFromString(brandSources[key], 'image/svg+xml').documentElement;
+    if (parsed.localName !== 'svg') return null;
+    parsed.removeAttribute('style');
+    if (!parsed.getAttribute('viewBox')) {
+      const w = Number(parseFloat(parsed.getAttribute('width'))) || 16;
+      const h = Number(parseFloat(parsed.getAttribute('height'))) || 16;
+      parsed.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    }
+    parsed.removeAttribute('width');
+    parsed.removeAttribute('height');
+    brandTemplates.set(key, parsed);
+  }
+  const svg = document.importNode(brandTemplates.get(key), true);
+  svg.setAttribute('x', x);
+  svg.setAttribute('y', y);
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('class', `brand-mark${MONO_BRANDS.has(key) ? ' mono' : ''}`);
+  return svg;
+}
+
+const AGENT_NAMES = { dsh: 'DeepSeek Harness' };
 
 function accountOf(route) {
   const attempt = (route.tries || []).at(-1);
@@ -118,20 +170,24 @@ perch.style.setProperty('--agent', '#d4d4e0');
 perch.append(perchAnim);
 const hubGlyph = svgEl('path', { class: 'hub-glyph', 'fill-rule': 'evenodd', d: MAGPIE_PATH });
 let hubBox = null;
+let hubAddrText = null;
 
 function buildHub() {
   hubLayer.innerHTML = '';
   hubBox = svgEl('rect', {
-    class: 'hub-box', x: HUB.left, y: HUB.y - 17, width: HUB.right - HUB.left, height: 34, rx: 8,
+    class: 'hub-box', x: HUB.left, y: HUB.y - 21, width: HUB.right - HUB.left, height: 42, rx: 9,
   });
-  const glyph = svgEl('g', { transform: `translate(${(HUB.left + HUB.right) / 2 - 15} ${HUB.y - 15}) scale(0.68)` });
+  const glyph = svgEl('g', { transform: `translate(${(HUB.left + HUB.right) / 2 - 11} ${HUB.y - 18}) scale(0.5)` });
   glyph.append(hubGlyph);
   const glow = svgEl('circle', {
     class: 'hub-glow', cx: (HUB.left + HUB.right) / 2, cy: HUB.y, r: 30, fill: 'url(#glowGrad)',
   });
-  hubLayer.append(glow, hubBox, glyph);
+  const nameText = svgEl('text', { class: 't-brand', x: (HUB.left + HUB.right) / 2, y: HUB.y + 7, 'text-anchor': 'middle' });
+  nameText.textContent = 'magpie';
+  hubAddrText = svgEl('text', { class: 't-addr', x: (HUB.left + HUB.right) / 2, y: HUB.y + 16, 'text-anchor': 'middle' });
+  hubLayer.append(glow, hubBox, glyph, nameText, hubAddrText);
   // The perch bird stands on the hub card's top edge, facing right.
-  perch.setAttribute('transform', `translate(${HUB.right - 4} ${HUB.y - 19}) scale(0.5)`);
+  perch.setAttribute('transform', `translate(${HUB.right - 4} ${HUB.y - 24}) scale(0.5)`);
   perch.style.display = 'none';
   birdsLayer.append(perch);
 }
@@ -188,14 +244,94 @@ function latestRouteOf(group) {
 
 // ── stage rendering ─────────────────────────────────────────────────────────
 
-function chipLabel(agent) {
-  return capFirst(shortName(agent, 9));
+function statusText(route) {
+  if (!route) return '排队中…';
+  if (route.done) {
+    return Number(route.status) >= 400 ? `回答失败 · ${route.status}` : '回答了这个请求';
+  }
+  return (route.tries || []).length ? '回答中…' : '排队中…';
 }
 
-function accountLabel(route) {
-  const attempt = (route.tries || []).at(-1);
-  const id = attempt?.id || route.order?.[0]?.id;
-  return id ? capFirst(shortName(id)) : '…';
+function badgeText(route) {
+  const attempt = (route?.tries || []).at(-1);
+  const value = attempt?.served || String(route?.model || '').split('/')[1] || '';
+  return value ? shortName(value, 12) : '';
+}
+
+function agentCard(group, accent, route, count, active) {
+  const y = laneY(group.lane);
+  const g = svgEl('g');
+  g.style.setProperty('--c', accent);
+  g.append(svgEl('rect', {
+    class: `card-box${active ? ' live' : ''}`, x: 2, y: y - 21, width: 64, height: 42, rx: 9,
+  }));
+  const name = capFirst(AGENT_NAMES[group.agent] || group.agent || 'unknown');
+  const model = String(route?.model || '').split('/')[1] || '';
+  const icon = brandMark(brandKeyOf(group.agent, 'agent'), 25, y - 18, 14);
+  if (icon) g.append(icon);
+  else g.append(svgEl('circle', { class: 'chip-dot', cx: 32, cy: y - 11, r: 4 }));
+  const nameText = svgEl('text', { class: 't-name', x: 34, y: y + 4, 'text-anchor': 'middle' });
+  nameText.textContent = shortName(name, 9) + (count > 1 ? ` ×${count}` : '');
+  const modelText = svgEl('text', { class: 't-model', x: 34, y: y + 14, 'text-anchor': 'middle' });
+  modelText.textContent = shortName(model, 13);
+  g.append(nameText, modelText);
+  if (route?.model) {
+    const tip = svgEl('title');
+    tip.textContent = `${name}\n${route.model}\n${statusText(route)}`;
+    g.append(tip);
+  }
+  return g;
+}
+
+function accountCard(group, accent, route, active) {
+  const y = laneY(group.lane);
+  const g = svgEl('g');
+  g.style.setProperty('--c', accent);
+  g.append(svgEl('rect', {
+    class: `card-box${active ? ' live' : ''}`, x: 194, y: y - 21, width: 62, height: 42, rx: 9,
+  }));
+  const seat = route?.order?.[0] || {};
+  const attempt = (route?.tries || []).at(-1);
+  const who = seat.who || seat.name || accountOf(route || {});
+  const failed = route?.done && Number(route.status) >= 400;
+  const done = route?.done && !failed;
+  // status dot
+  g.append(svgEl('circle', {
+    class: `status-dot${active ? ' pulse' : ''}`,
+    cx: 201, cy: y - 13, r: 2.4,
+    fill: failed ? BAD : done ? 'rgba(255,255,255,0.35)' : 'var(--c, #a18bff)',
+  }));
+  // brand icon or a plain dot
+  const iconKey = brandKeyOf(seat.icon, 'provider') || brandKeyOf(seat.provider || route?.provider, 'provider');
+  const icon = brandMark(iconKey, 207, y - 18, 11);
+  if (icon) g.append(icon);
+  // account name
+  const nameText = svgEl('text', { class: 't-sub', x: icon ? 221 : 207, y: y - 9 });
+  nameText.textContent = shortName(who, icon ? 7 : 10);
+  // status line
+  const status = svgEl('text', { class: 't-status', x: 200, y: y + 5 });
+  status.textContent = statusText(route);
+  // model badge, right aligned on the status row
+  const badge = badgeText(route);
+  if (badge) {
+    const bw = badge.length * 3.8 + 8;
+    g.append(svgEl('rect', { class: 'badge-box', x: 254 - bw, y: y - 2, width: bw, height: 11, rx: 4 }));
+    const badgeTextEl = svgEl('text', { class: 'badge-text', x: 254 - bw / 2, y: y + 5.8, 'text-anchor': 'middle' });
+    badgeTextEl.textContent = badge;
+    g.append(badgeTextEl);
+  }
+  // progress underline: a live shimmer while answering, quiet when done
+  g.append(svgEl('rect', { class: 'bar-track', x: 200, y: y + 10, width: 54, height: 2, rx: 1 }));
+  g.append(svgEl('rect', {
+    class: `bar-fill${failed ? ' fail' : ''}${active ? ' busy' : ''}`,
+    x: 200, y: y + 10, width: 54, height: 2, rx: 1,
+  }));
+  if (route?.model || seat.who) {
+    const tip = svgEl('title');
+    tip.textContent = `${who}${seat.name ? ` · ${seat.name}` : ''}${seat.plan ? ` · ${seat.plan}` : ''}\n${badgeText(route)}`;
+    g.append(tip);
+  }
+  return g;
 }
 
 function render() {
@@ -204,47 +340,58 @@ function render() {
   for (const group of state.groups.values()) {
     const accent = accentOf(group);
     const y = laneY(group.lane);
+    const route = latestRouteOf(group);
     const active = group.routes.some(id => requestActive(state.routes.get(String(id))));
+    const attempt = (route?.tries || []).at(-1);
+    // Official Routing semantics: the request's ride to magpie is a solid
+    // line, the answer's ride back is dashed until it is done.
     const inD = wireCurve({ x: AGENT_X, y }, { x: HUB.left, y: HUB.y, tx: 1, ty: 0 });
-    if (active && !group.merged) {
-      // a soft underglow under the live dashes
-      const outGlow = svgEl('path', { class: 'wire glow', d: wireCurve({ x: HUB.right, y: HUB.y, tx: 1, ty: 0 }, { x: ACCOUNT_X, y }) });
-      outGlow.style.setProperty('--c', accent);
-      wires.append(outGlow);
+    wires.append(wire(inD, accent, 'line', active));
+    if (!group.merged) {
+      if (active) {
+        const outGlow = svgEl('path', {
+          class: 'wire glow',
+          d: wireCurve({ x: HUB.right, y: HUB.y, tx: 1, ty: 0 }, { x: ACCOUNT_X, y }),
+        });
+        outGlow.style.setProperty('--c', accent);
+        wires.append(outGlow);
+      }
+      const pending = active && !(attempt && attempt.done);
+      wires.append(wire(
+        wireCurve({ x: HUB.right, y: HUB.y, tx: 1, ty: 0 }, { x: ACCOUNT_X, y }),
+        accent, pending ? 'live' : 'line', active,
+      ));
     }
-    if (active) {
-      const inGlow = svgEl('path', { class: 'wire glow', d: inD });
-      inGlow.style.setProperty('--c', accent);
-      wires.append(inGlow);
-    }
-    const inPath = svgEl('path', { class: `wire${active ? ' live' : ''}`, d: inD });
-    inPath.style.setProperty('--c', accent);
-    wires.append(inPath);
     // a burrow at the wire's end: the courier tucks itself in there to wait.
     // A merged trip comes back to the same burrow, so there is only one.
     const inBurrow = burrow(AGENT_X, y);
     inBurrow.style.setProperty('--c', accent);
     wires.append(inBurrow);
     if (!group.merged) {
-      const outPath = svgEl('path', { class: `wire${active ? ' live' : ' resting'}`, d: wireCurve({ x: HUB.right, y: HUB.y, tx: 1, ty: 0 }, { x: ACCOUNT_X, y }) });
-      outPath.style.setProperty('--c', accent);
-      wires.append(outPath);
       const outBurrow = burrow(ACCOUNT_X, y);
       outBurrow.style.setProperty('--c', accent);
       wires.append(outBurrow);
     }
 
-    const route = latestRouteOf(group);
     const count = group.routes.length;
-    const agentText = chipLabel(group.agent) + (count > 1 ? ` ×${count}` : '');
-    chips.append(chip(group, accent, agentText,
-      group.merged ? '' : accountLabel(route || {}), route?.model || '', route?.agent || ''));
+    chips.append(agentCard(group, accent, route, count, active));
+    if (!group.merged) chips.append(accountCard(group, accent, route, active));
   }
   const hubActive = [...state.routes.values()].some(requestActive);
   hubLayer.classList.toggle('active', hubActive);
   hubLayer.style.setProperty('--c', hubActive ? accentOf([...state.groups.values()][0]) || '' : '');
+  if (hubAddrText) {
+    hubAddrText.textContent = String(state.detail || state.settings?.gateway || '')
+      .replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  }
   perch.style.display = flights.size ? 'none' : '';
   perch.classList.toggle('sleep', !state.online);
+}
+
+function wire(d, accent, kind, lit) {
+  const p = svgEl('path', { class: `wire ${kind}${lit ? '' : ' resting'}`, d });
+  p.style.setProperty('--c', accent);
+  return p;
 }
 
 const accentOf = group => state.settings?.themeColor || group.color;
@@ -256,32 +403,6 @@ function burrow(x, y) {
     svgEl('path', { class: 'burrow-rim', d: `M ${x - 7} ${y} A 7 5.2 0 0 1 ${x + 7} ${y}` }),
     svgEl('ellipse', { class: 'burrow-hole', cx: x, cy: y, rx: 5.6, ry: 3.8 }),
   );
-  return g;
-}
-
-function chip(group, accent, agentText, accountText, title, agentName) {
-  const y = laneY(group.lane);
-  const active = group.routes.some(id => requestActive(state.routes.get(String(id))));
-  const g = svgEl('g');
-  g.style.setProperty('--c', accent);
-  const agentBox = svgEl('rect', {
-    class: `chip-box${active ? ' live' : ''}`, x: 4, y: y - 10, width: 58, height: 20, rx: 7,
-  });
-  const agentDot = svgEl('circle', { class: `chip-dot${active ? ' pulse' : ''}`, cx: 12, cy: y, r: 2.7 });
-  const agentLabel = svgEl('text', { class: 'chip-text', x: 18, y: y + 3 });
-  agentLabel.textContent = agentText;
-  const accountBox = svgEl('rect', {
-    class: `chip-box${active ? ' live' : ''}`, x: 198, y: y - 10, width: 58, height: 20, rx: 7,
-  });
-  const accountNode = svgEl('text', { class: 'chip-sub', x: 204, y: y + 3 });
-  accountNode.textContent = accountText;
-  if (title) {
-    const tip = svgEl('title');
-    tip.textContent = `${agentName}\n${title}`;
-    g.append(tip);
-  }
-  g.append(agentBox, agentDot, agentLabel);
-  if (accountText) g.append(accountBox, accountNode);
   return g;
 }
 
@@ -409,7 +530,7 @@ function holdAt(flight, where) {
   setPose(flight, `hold-${where}`);
   const y = laneY(flight.lane);
   if (where === 'hub') {
-    flight.bird.setAttribute('transform', `translate(${HUB.left + 9} ${HUB.y - 19}) scale(0.72)`);
+    flight.bird.setAttribute('transform', `translate(${HUB.left + 9} ${HUB.y - 24}) scale(0.72)`);
     placeHolePacket(flight, HUB.left + 2, HUB.y);
   } else {
     flight.bird.setAttribute('transform', `translate(${ACCOUNT_X + 7} ${y - 7}) scale(0.72)`);

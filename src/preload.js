@@ -1,8 +1,22 @@
 'use strict';
 
 const { contextBridge, ipcRenderer } = require('electron');
+const fs = require('fs');
+const path = require('path');
+
+// Brand icons shipped with the widget (from busy-magpie, MIT licensed).
+let brandIcons = {};
+try {
+  const brandDir = path.join(__dirname, '..', 'assets', 'brands');
+  brandIcons = Object.fromEntries(fs.readdirSync(brandDir)
+    .filter(name => name.endsWith('.svg'))
+    .map(name => [name.slice(0, -4), fs.readFileSync(path.join(brandDir, name), 'utf8').trim()]));
+} catch {
+  brandIcons = {};
+}
 
 contextBridge.exposeInMainWorld('bird', {
+  brandIcons,
   ready: () => ipcRenderer.send('bird:ready'),
   hitAreas: (areas) => ipcRenderer.send('bird:hit-areas', areas),
   dragStart: () => ipcRenderer.send('bird:drag-start'),
