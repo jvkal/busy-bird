@@ -324,13 +324,15 @@ function ripple() {
   }, 700);
 }
 
+// Resolves true when the leg completed, false when the flight was cancelled
+// or lost its geometry — the playback loop stops only on a false.
 function flyTo(flight, spec, ms) {
   return new Promise((resolve) => {
     const started = performance.now();
     let crossed = false;
     const step = (now) => {
-      if (flight.cancelled) { resolve(); return; }
-      if (!buildLegs(flight, spec)) { resolve(); return; }
+      if (flight.cancelled) { resolve(false); return; }
+      if (!buildLegs(flight, spec)) { resolve(false); return; }
       const progress = Math.max(0, Math.min(1, (now - started) / ms));
       const distance = glideProgress(progress) * flight.length;
       if (!crossed) {
@@ -347,7 +349,7 @@ function flyTo(flight, spec, ms) {
       if (Math.abs(vx) + Math.abs(vy) < 0.01) vx = 1;
       poseBird(flight, p, vx, vy);
       if (progress < 1) requestAnimationFrame(step);
-      else resolve();
+      else resolve(true);
     };
     requestAnimationFrame(step);
   });
@@ -358,18 +360,32 @@ function setPose(flight, pose) {
   flight.bird.classList.toggle('back', pose.includes('back'));
   flight.bird.classList.toggle('failed', pose.includes('failed'));
   flight.bird.classList.toggle('held', held);
-  // The courier pops out of the burrow when it flies again.
-  flight.flier.classList.toggle('carrying', !held);
+  if (!held && flight.holePacket) {
+    flight.holePacket.remove();
+    flight.holePacket = null;
+  }
 }
 
-// Waiting happens inside a burrow: the bird hides and only the packet it
-// delivered keeps glowing at the hole mouth.
+// The data sits in the burrow glowing; the courier perches at the mouth and
+// waits where it can be seen.
+function placeHolePacket(flight, x, y) {
+  if (!flight.holePacket) {
+    flight.holePacket = svgEl('circle', { class: 'hole-packet', r: 3, cx: 0, cy: 0 });
+    flight.holePacket.style.setProperty('--c', flight.accent);
+    fx.append(flight.holePacket);
+  }
+  flight.holePacket.setAttribute('transform', `translate(${x} ${y})`);
+}
+
 function holdAt(flight, where) {
   setPose(flight, `hold-${where}`);
+  const y = laneY(flight.lane);
   if (where === 'hub') {
-    flight.bird.setAttribute('transform', `translate(${HUB.left + 2} ${HUB.y}) scale(0.72)`);
+    flight.bird.setAttribute('transform', `translate(${HUB.left + 9} ${HUB.y - 19}) scale(0.72)`);
+    placeHolePacket(flight, HUB.left + 2, HUB.y);
   } else {
-    flight.bird.setAttribute('transform', `translate(${ACCOUNT_X} ${laneY(flight.lane)}) scale(0.72)`);
+    flight.bird.setAttribute('transform', `translate(${ACCOUNT_X + 7} ${y - 7}) scale(0.72)`);
+    placeHolePacket(flight, ACCOUNT_X, y);
   }
 }
 
@@ -419,6 +435,8 @@ function fadeOut(flight) {
 function dispose(flight) {
   if (flight.cancelled && !flight.bird.isConnected) return;
   flight.cancelled = true;
+  flight.holePacket?.remove();
+  flight.holePacket = null;
   flight.bird.remove();
   flight.guides.remove();
   flights.delete(flight.id);
@@ -448,6 +466,7 @@ function startFlight(route) {
     id, groupKey: key, route, bird, flier, packet, guides, paths,
     lane: group ? group.lane : 0, geoKey: '', legs: [], length: 0,
     aim: null, aimFlip: false, cancelled: false, dismissing: false,
+    accent: color, holePacket: null,
   };
   flights.set(id, flight);
   window.requestAnimationFrame(() => { bird.style.opacity = '1'; });

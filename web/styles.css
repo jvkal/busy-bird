@@ -357,15 +357,27 @@ button.mini:hover { background: rgba(255, 255, 255, 0.14); }
   filter: drop-shadow(0 0 3px #ff6b6b);
 }
 
-/* Held: the courier has tucked itself into the burrow; only the packet it
-   delivered keeps glowing at the hole mouth. */
-.flying-bird.held .flier { opacity: 0; }
+/* Held: the courier perches at the burrow mouth guarding its packet, which
+   glows down in the hole. */
+.flying-bird.held .wing {
+  animation: none;
+  transform: scaleY(-0.4) skewX(8deg);
+}
 
-.flying-bird.held .packet { animation: packetWait 1.3s ease-in-out infinite; }
+.flying-bird.held .flier { animation: heldBob 1.5s ease-in-out infinite; }
 
-.flying-bird .rt-lift { animation: birdCome 0.3s ease-out; }
+.flying-bird.held .packet { opacity: 0; }
 
-.flying-bird .flier:not(.carrying) .rt-lift { animation: none; }
+.hole-packet {
+  fill: var(--c, #a18bff);
+  filter: drop-shadow(0 0 4px var(--c, #a18bff));
+  animation: packetWait 1.3s ease-in-out infinite;
+}
+
+@keyframes heldBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.6px); }
+}
 
 @keyframes wingFlap {
   0%, 100% { transform: scaleY(1); }

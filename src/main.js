@@ -30,6 +30,7 @@ let tray = null;
 let quitting = false;
 let settings = null;
 let settingsPath = null;
+let logPath = null;
 let trace = null;
 let connection = { online: false, detail: '正在连接' };
 let usageData = null;
@@ -55,8 +56,17 @@ function defaultSettings() {
   };
 }
 
+function log(message) {
+  try {
+    fs.appendFileSync(logPath, `${new Date().toISOString()}  ${message}\n`);
+  } catch {
+    // Logging must never take the widget down.
+  }
+}
+
 function loadSettings() {
   settingsPath = path.join(app.getPath('appData'), 'Busy Bird', 'settings.json');
+  logPath = path.join(app.getPath('appData'), 'Busy Bird', 'busy-bird.log');
   let stored = {};
   try {
     stored = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
@@ -329,6 +339,14 @@ function createWindow() {
   });
 
   win.setMenuBarVisibility(false);
+  // Renderer warnings and errors land in the log: a dead flight loop must
+  // leave a trace.
+  win.webContents.on('console-message', (...args) => {
+    const ev = args[0];
+    const level = typeof ev?.level === 'number' ? ev.level : args[1];
+    const message = typeof ev?.message === 'string' ? ev.message : args[2];
+    if (level >= 2) log(`renderer: ${message}`);
+  });
   win.loadFile(path.join(__dirname, '..', 'web', 'index.html'));
 
   win.once('ready-to-show', () => win.showInactive());
@@ -754,6 +772,7 @@ if (!gotLock) {
 
     if (IS_SHOT) {
       const target = IS_SHOT.slice('--shot='.length);
+      const delay = Math.max(1000, Number(process.env.BUSY_BIRD_SHOT_MS) || 6000);
       shotTimer = setTimeout(async () => {
         try {
           const image = await win.webContents.capturePage();
