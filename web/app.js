@@ -460,7 +460,9 @@ async function runFlight(flight) {
       await waitFor(flight, r => Boolean((r.tries || [])[index]));
     }
   } finally {
-    if (flights.has(flight.id) && flight.dismissing) dispose(flight);
+    // A fading flight owns its own delayed dispose; only an abrupt exit
+    // (cancellation, reset) cleans up here.
+    if (flights.has(flight.id) && !flight.dismissing) dispose(flight);
   }
 }
 
