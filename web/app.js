@@ -337,7 +337,7 @@ function render() {
       ));
     }
 
-    const count = group.routes.length;
+    const count = group.routes.filter(id => requestActive(state.routes.get(String(id)))).length;
     chips.append(agentCard(group, accent, route, count, active));
     if (!group.merged) chips.append(accountCard(group, accent, route, active));
   }
