@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Busy Bird</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar" id="topbar">
+    <span class="dot" id="dot" title="正在连接"></span>
+    <button class="pill" id="pill" title="单击切换时间窗">— tok</button>
+  </header>
+  <svg id="sky" viewBox="0 0 300 190" aria-hidden="true">
+    <g id="wires"></g>
+    <g id="chips"></g>
+    <g id="hub"></g>
+    <g id="fx"></g>
+    <g id="birds"></g>
+  </svg>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

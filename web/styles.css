@@ -1,0 +1,256 @@
+/* Busy Bird — transparent card, perched magpie, flying couriers. */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+  user-select: none;
+  cursor: default;
+}
+
+body {
+  border-radius: 12px;
+  background: rgba(16, 16, 24, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+  color: #e6e6f0;
+}
+
+/* ── top bar: drag strip + status dot + token pill ─────────────────────── */
+
+.topbar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  z-index: 3;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin: 0 8px 0 10px;
+  background: #6b6b7a;
+  flex: none;
+}
+
+.dot.ok { background: #5be39a; box-shadow: 0 0 5px rgba(91, 227, 154, 0.7); }
+.dot.bad { background: #ffb86b; box-shadow: 0 0 5px rgba(255, 184, 107, 0.7); }
+
+.pill {
+  margin: 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #e6e6f0;
+  font: 600 10px/1.5 inherit;
+  font-family: inherit;
+  padding: 1px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pill:hover { background: rgba(255, 255, 255, 0.14); }
+.pill.stale { opacity: 0.62; }
+
+/* ── the sky ───────────────────────────────────────────────────────────── */
+
+#sky {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.wire {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.09);
+  stroke-width: 1.4;
+}
+
+.wire.live {
+  stroke: var(--c, #a18bff);
+  stroke-opacity: 0.55;
+  stroke-dasharray: 3 5;
+  animation: dashFlow 0.9s linear infinite;
+}
+
+.wire.resting {
+  stroke: var(--c, #a18bff);
+  stroke-opacity: 0.16;
+}
+
+@keyframes dashFlow {
+  to { stroke-dashoffset: -8; }
+}
+
+.chip-box {
+  stroke-width: 1;
+}
+
+.chip-text {
+  font-size: 9px;
+  fill: #e4e4ee;
+  font-weight: 600;
+}
+
+.chip-sub {
+  font-size: 8px;
+  fill: #b9b9c8;
+  font-weight: 400;
+}
+
+.hub-box {
+  fill: rgba(255, 255, 255, 0.055);
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1;
+}
+
+.hub-box.active {
+  stroke: var(--c, #a18bff);
+  stroke-opacity: 0.5;
+}
+
+.hub-glyph {
+  fill: #d4d4e0;
+  fill-opacity: 0.92;
+}
+
+.hub-glyph.active {
+  fill: var(--c, #a18bff);
+}
+
+/* ── the flying courier ────────────────────────────────────────────────── */
+
+.flying-bird {
+  color: color-mix(in srgb, var(--agent, #a18bff) 84%, #ffffff);
+  will-change: transform, opacity;
+  transition: opacity 0.3s ease;
+}
+
+.flying-bird .flier { transition: opacity 0.16s ease; }
+
+.flying-bird .body,
+.flying-bird .tail,
+.flying-bird .wing path:first-child,
+.flying-bird .wing.far {
+  fill: currentColor;
+}
+
+.flying-bird .wing.far { opacity: 0.45; }
+
+.flying-bird .belly { fill: #101018; }
+
+.flying-bird .wing .bar {
+  fill: none;
+  stroke: #101018;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+}
+
+.flying-bird .wing {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: wingFlap 0.42s cubic-bezier(0.45, 0, 0.3, 1) infinite;
+}
+
+.flying-bird .wing.far { animation-delay: -0.03s; }
+
+.flying-bird .packet {
+  fill: var(--agent, #a18bff);
+  filter: drop-shadow(0 0 3px var(--agent, #a18bff));
+}
+
+.flying-bird.back .packet { opacity: 0; }
+.flying-bird.failed .packet {
+  fill: #ff6b6b;
+  filter: drop-shadow(0 0 3px #ff6b6b);
+}
+
+.flying-bird.held .wing { animation-play-state: paused; }
+
+.flying-bird.held .flier {
+  animation: heldBob 1.5s ease-in-out infinite;
+}
+
+.flying-bird.held.at-account .packet { animation: packetWait 1.3s ease-in-out infinite; }
+
+@keyframes wingFlap {
+  0%, 100% { transform: scaleY(1); }
+  55% { transform: scaleY(-0.62) skewX(-8deg); }
+}
+
+@keyframes heldBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.6px); }
+}
+
+@keyframes packetWait {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ── crossing magpie: one quiet ripple ─────────────────────────────────── */
+
+.ripple {
+  fill: none;
+  stroke: var(--c, #a18bff);
+  stroke-width: 1.6;
+  animation: rippleOut 0.62s ease-out forwards;
+}
+
+@keyframes rippleOut {
+  from { r: 2; stroke-opacity: 0.85; }
+  to { r: 17; stroke-opacity: 0; }
+}
+
+/* ── the perched bird that lives on the card ───────────────────────────── */
+
+.perched .wing {
+  animation: none;
+  transform: scaleY(-0.4) skewX(8deg);
+}
+
+.perched.hop .perch-anim { animation: hopUp 0.72s ease; }
+
+@keyframes hopUp {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4.5px); }
+  60% { transform: translateY(0); }
+  80% { transform: translateY(-2px); }
+}
+
+.perched.flutter .wing {
+  animation: wingFlap 0.32s ease-in-out 2;
+  transform: none;
+}
+
+.perched.flutter .perch-anim { animation: flutterLift 0.72s ease; }
+
+@keyframes flutterLift {
+  35% { transform: translateY(-2.5px); }
+}
+
+.perched.look .perch-anim { animation: lookAround 1.3s ease; }
+
+@keyframes lookAround {
+  40% { transform: scaleX(-0.94); }
+  100% { transform: scaleX(1); }
+}
+
+.perched.sleep { opacity: 0.45; }
+
+@media (prefers-reduced-motion: reduce) {
+  .flying-bird .wing,
+  .flying-bird.held .flier,
+  .wire.live,
+  .perched .perch-anim { animation: none !important; }
+}

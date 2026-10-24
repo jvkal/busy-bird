@@ -1,0 +1,30 @@
+{
+  "name": "busy-bird",
+  "productName": "Busy Bird",
+  "version": "0.1.0",
+  "description": "鸟儿飞来飞去的 magpie 桌面挂件 · A tiny desktop perch where a bird carries every magpie request.",
+  "main": "plugin/server.mjs",
+  "author": "chaofanat",
+  "license": "MIT",
+  "private": true,
+  "keywords": [
+    "magpie",
+    "magpie-plugin",
+    "electron",
+    "desktop"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "magpie": {
+    "hooks": "./plugin/launch.hooks.mjs"
+  },
+  "scripts": {
+    "start": "electron .",
+    "mock": "node tools/mock-server.mjs",
+    "shot": "electron . --shot=docs\\screenshots\\bird.png --demo"
+  },
+  "devDependencies": {
+    "electron": "^39.8.7"
+  }
+}
