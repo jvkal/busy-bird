@@ -598,6 +598,40 @@ body.docked .rz { display: none; }
   animation: packetWait 1.3s ease-in-out infinite;
 }
 
+/* One-shot gestures: the vendor beats its icon once when the request lands,
+   the agent spins its thinking arc once when the answer comes home. */
+.isl-end .isl-spin { display: none; }
+
+.isl-end.think-once .isl-spin { display: block; }
+
+.isl-spin-arc {
+  fill: none;
+  stroke: var(--c, #a18bff);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-dasharray: 13 7;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: islSpin 0.9s ease-in-out 1 forwards;
+}
+
+@keyframes islSpin {
+  to { transform: rotate(360deg); }
+}
+
+.isl-end.pulse-once .brand-mark,
+.isl-end.pulse-once .isl-fallback {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: islBeat 0.55s ease-in-out 1;
+}
+
+@keyframes islBeat {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
 .isl-track {
   stroke: rgba(255, 255, 255, 0.22);
   stroke-width: 1.1;

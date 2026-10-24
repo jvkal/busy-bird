@@ -24,6 +24,10 @@ const UPDATE_MS = 60 * 1000;
 
 const IS_SHOT = process.argv.find((arg) => arg.startsWith('--shot='));
 const IS_DEMO = process.argv.includes('--demo') || Boolean(IS_SHOT);
+// A separate data directory lets a test instance run beside the real one.
+if (process.env.BUSY_BIRD_DATA) {
+  app.setPath('userData', process.env.BUSY_BIRD_DATA);
+}
 
 let win = null;
 let tray = null;

@@ -398,6 +398,7 @@ const islRight = $('islRight');
 const islText = $('islText');
 const islBirds = $('islBirds');
 const islPacket = $('islPacket');
+let islEndKeys = { left: null, right: null };
 
 let islBird = null;
 
@@ -440,6 +441,13 @@ function islWait(predicate) {
   });
 }
 
+function flashClass(el, cls, ms) {
+  el.classList.remove(cls);
+  void el.getBoundingClientRect();
+  el.classList.add(cls);
+  window.setTimeout(() => el.classList.remove(cls), ms);
+}
+
 // The island's courier exists only while there is something to carry: it
 // appears on the wire, flies empty to the vendor, tucks in, and rides home
 // with the golden answer — then it is gone until the next request.
@@ -476,6 +484,8 @@ async function islandBirdLoop() {
     islPacket.style.setProperty('--c', accent);
     islPacket.setAttribute('transform', 'translate(196 21)');
     islPacket.style.opacity = '1';
+    // the vendor beats its icon once: request received
+    flashClass(islRight, 'pulse-once', 600);
     await islWait(() => {
       const fresh = state.routes.get(id);
       return !fresh || fresh.done;
@@ -486,6 +496,8 @@ async function islandBirdLoop() {
     bird.flier.style.opacity = '1';
     await islFly(192, 42, 1500);
     bird.g.classList.remove('back');
+    // the agent spins its thinking arc once, over the answer, then rests
+    flashClass(islLeft, 'think-once', 1000);
     bird.g.style.opacity = '0';
     bird.visible = false;
   }
@@ -502,15 +514,19 @@ function updateIsland() {
   islandEl.classList.toggle('flow', active.length > 0);
   islandEl.style.setProperty('--c', accent);
   // The island's two ends wear the brand icons of the agent and the vendor
-  // it is talking to; plain dots only when no brand matches.
+  // it is talking to; they persist between requests and only re-render when
+  // the pair actually changes, so idle renders never blink them away.
   if (first) {
     const route = latestRouteOf(first) || {};
     const seat = route.order?.[0] || {};
     const agentKey = brandKeyOf(first.agent, 'agent');
     const vendorKey = brandKeyOf(seat.icon, 'provider')
       || brandKeyOf(seat.provider || route.provider, 'provider');
-    setIslandEnd(islLeft, agentKey, accent);
-    setIslandEnd(islRight, vendorKey, accent);
+    if (agentKey !== islEndKeys.left || vendorKey !== islEndKeys.right) {
+      islEndKeys = { left: agentKey, right: vendorKey };
+      setIslandEnd(islLeft, agentKey, accent);
+      setIslandEnd(islRight, vendorKey, accent);
+    }
   }
   // Comets: a bright head with a small trailing tail, one per active request.
   for (const [i, group] of active.entries()) {
@@ -538,6 +554,13 @@ function setIslandEnd(anchor, key, accent) {
   const icon = brandMark(key, -7.5, -7.5, 15);
   if (icon) anchor.append(icon);
   else anchor.append(svgEl('circle', { class: 'isl-fallback', cx: 0, cy: 0, r: 3.5 }));
+  // The left end gets a one-shot thinking spin when the answer arrives; the
+  // right end beats its icon once when the request lands.
+  if (anchor === islLeft) {
+    const spin = svgEl('g', { class: 'isl-spin' });
+    spin.append(svgEl('circle', { class: 'isl-spin-arc', cx: 8, cy: -8, r: 3.2 }));
+    anchor.append(spin);
+  }
 }
 
 function wire(d, accent, kind, lit) {

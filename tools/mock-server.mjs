@@ -6,9 +6,8 @@
 //   node tools/mock-server.mjs [port]        # default 3529
 //   BUSY_BIRD_GATEWAY=http://127.0.0.1:3529 npm start
 
-'use strict';
+import http from 'node:http';
 
-const http = require('http');
 const port = Number(process.argv[2]) || 3529;
 
 const AGENTS = ['dsh', 'Codex', 'Claude Code', 'Qoder'];
