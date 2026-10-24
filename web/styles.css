@@ -177,18 +177,17 @@ button.mini {
 
 button.mini:hover { background: rgba(255, 255, 255, 0.14); }
 
-/* ── edge and corner resize bands ──────────────────────────────────────── */
+/* ── edge and corner resize bands (the top edge is drag-only) ──────────── */
 
 .rz { position: fixed; z-index: 5; }
 
-.rz.n { top: 0; left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
-.rz.s { bottom: 0; left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
-.rz.e { right: 0; top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
-.rz.w { left: 0; top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
-.rz.ne { top: 0; right: 0; width: 13px; height: 13px; cursor: nesw-resize; }
-.rz.nw { top: 0; left: 0; width: 13px; height: 13px; cursor: nwse-resize; }
-.rz.se { bottom: 0; right: 0; width: 13px; height: 13px; cursor: nwse-resize; }
-.rz.sw { bottom: 0; left: 0; width: 13px; height: 13px; cursor: nesw-resize; }
+.rz.s { bottom: 0; left: 12px; right: 12px; height: 4px; cursor: ns-resize; }
+.rz.e { right: 0; top: 12px; bottom: 12px; width: 4px; cursor: ew-resize; }
+.rz.w { left: 0; top: 12px; bottom: 12px; width: 4px; cursor: ew-resize; }
+.rz.ne { top: 0; right: 0; width: 11px; height: 11px; cursor: nesw-resize; }
+.rz.nw { top: 0; left: 0; width: 11px; height: 11px; cursor: nwse-resize; }
+.rz.se { bottom: 0; right: 0; width: 11px; height: 11px; cursor: nwse-resize; }
+.rz.sw { bottom: 0; left: 0; width: 11px; height: 11px; cursor: nesw-resize; }
 
 /* ── the sky ───────────────────────────────────────────────────────────── */
 

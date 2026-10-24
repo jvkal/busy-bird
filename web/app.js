@@ -953,6 +953,7 @@ topbar.addEventListener('mousedown', (event) => {
 
 for (const band of document.querySelectorAll('.rz')) {
   band.addEventListener('mousedown', (event) => {
+    if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
     window.bird?.resizeStart(band.dataset.dir);
@@ -962,6 +963,14 @@ for (const band of document.querySelectorAll('.rz')) {
 window.addEventListener('mouseup', () => {
   window.bird?.dragEnd();
   window.bird?.resizeEnd();
+});
+
+// Esc is the emergency brake for drags and resizes gone wrong.
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    window.bird?.resizeEnd();
+    window.bird?.dragEnd();
+  }
 });
 
 // Dragging the island itself undocks it from the screen top.
