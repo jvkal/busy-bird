@@ -395,12 +395,18 @@ function render() {
 const islLights = $('islLights');
 const islLeft = $('islLeft');
 const islRight = $('islRight');
+const islText = $('islText');
 
 function updateIsland() {
   if (!islLights) return;
   islLights.innerHTML = '';
-  const first = [...state.groups.values()][0];
+  const groups = [...state.groups.values()];
+  const active = groups.filter(g => g.routes.some(id => requestActive(state.routes.get(String(id)))));
+  const first = groups[0];
   const accent = first ? accentOf(first) : '#a18bff';
+  const islandEl = document.getElementById('island');
+  islandEl.classList.toggle('flow', active.length > 0);
+  islandEl.style.setProperty('--c', accent);
   // The island's two ends wear the brand icons of the agent and the vendor
   // it is talking to; plain dots only when no brand matches.
   if (first) {
@@ -412,27 +418,32 @@ function updateIsland() {
     setIslandEnd(islLeft, agentKey, accent);
     setIslandEnd(islRight, vendorKey, accent);
   }
-  let i = 0;
-  for (const group of state.groups.values()) {
-    if (!group.routes.some(id => requestActive(state.routes.get(String(id))))) continue;
-    const dot = svgEl('circle', { class: 'isl-light', cx: 26, cy: 13, r: 2.2 });
-    dot.style.setProperty('--c', accentOf(group));
-    dot.style.animationDelay = `${(-(i * 0.8)).toFixed(2)}s`;
-    dot.style.animationDuration = `${(2.2 + i * 0.4).toFixed(2)}s`;
-    islLights.append(dot);
-    if (++i >= 3) break;
+  // Comets: a bright head with a small trailing tail, one per active request.
+  for (const [i, group] of active.entries()) {
+    const comet = svgEl('g', { class: 'isl-light' });
+    comet.style.setProperty('--c', accentOf(group));
+    comet.style.animationDelay = `${(-(i * 0.8)).toFixed(2)}s`;
+    comet.style.animationDuration = `${(2.2 + i * 0.4).toFixed(2)}s`;
+    comet.append(
+      svgEl('circle', { cx: 38, cy: 21, r: 2.2 }),
+      svgEl('circle', { class: 'tail', cx: 33, cy: 21, r: 1.1 }),
+    );
+    islLights.append(comet);
+    if (i >= 2) break;
   }
+  const text = islText;
+  text.textContent = active.length
+    ? `${active.length} 个请求`
+    : `${fmtTokens(usageTotal(state.usage))} tok`;
 }
 
 function setIslandEnd(anchor, key, accent) {
   anchor.innerHTML = '';
   anchor.style.setProperty('--c', accent);
-  const icon = brandMark(key, -8, -8, 16);
-  if (icon) {
-    anchor.append(icon);
-  } else {
-    anchor.append(svgEl('circle', { cx: 0, cy: 0, r: 3.5 }));
-  }
+  anchor.append(svgEl('circle', { class: 'isl-chip', cx: 0, cy: 0, r: 10.5 }));
+  const icon = brandMark(key, -7.5, -7.5, 15);
+  if (icon) anchor.append(icon);
+  else anchor.append(svgEl('circle', { class: 'isl-fallback', cx: 0, cy: 0, r: 3.5 }));
 }
 
 function wire(d, accent, kind, lit) {

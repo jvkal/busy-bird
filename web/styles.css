@@ -531,16 +531,31 @@ body.snap-y::after { opacity: 1; }
   position: fixed;
   top: 0;
   left: 50%;
-  margin-left: -100px;
-  width: 200px;
-  height: 26px;
-  border-radius: 14px;
-  background: rgba(8, 8, 14, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  margin-left: -115px;
+  width: 230px;
+  height: 30px;
+  border-radius: 16px;
+  background: rgba(4, 4, 8, 0.97);
+  border: 1px solid transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 6px 22px rgba(0, 0, 0, 0.5);
   z-index: 8;
   cursor: grab;
   overflow: hidden;
+  transition: box-shadow 0.4s ease, border-color 0.4s ease;
+}
+
+#island:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+#island.flow {
+  border-color: color-mix(in srgb, var(--c, #a18bff) 45%, rgba(255, 255, 255, 0.08));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 6px 22px rgba(0, 0, 0, 0.5),
+    0 0 18px color-mix(in srgb, var(--c, #a18bff) 26%, transparent);
 }
 
 body.docked #island { display: block; }
@@ -557,26 +572,40 @@ body.docked:not(.expanded) {
 
 body.docked .rz { display: none; }
 
-.isl-end circle {
+.isl-end circle.isl-chip {
+  fill: rgba(255, 255, 255, 0.07);
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 0.6;
+}
+
+.isl-end .isl-fallback {
   fill: var(--c, #a18bff);
   filter: drop-shadow(0 0 3px var(--c, #a18bff));
 }
 
+.isl-light .tail { opacity: 0.4; }
+
 .isl-track {
-  stroke: rgba(255, 255, 255, 0.30);
-  stroke-width: 1.2;
-  stroke-dasharray: 3 4;
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 1.1;
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
 }
 
 .isl-light {
-  fill: var(--c, #a18bff);
   filter: drop-shadow(0 0 3px var(--c, #a18bff));
   animation: islMove 2.4s ease-in-out infinite;
 }
 
 @keyframes islMove {
   0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(148px); }
+  50% { transform: translateX(158px); }
+}
+
+.isl-text {
+  font-size: 8px;
+  fill: #b9b9c8;
+  font-weight: 600;
 }
 
 @media (prefers-reduced-motion: reduce) {
