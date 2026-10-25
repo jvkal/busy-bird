@@ -270,6 +270,10 @@ let expandDwell = 0;
 // It self-expires in case a mouseup is ever lost to a focus change.
 let pressGrace = false;
 let pressGraceUntil = 0;
+// Just after a drop, the cursor still sits on the pill: hold off expanding
+// for a moment so a placed island doesn't instantly balloon.
+let recentlyPlaced = false;
+let placedUntil = 0;
 
 function applyClickThrough(ignore) {
   if (!win || win.isDestroyed()) return;
@@ -310,14 +314,19 @@ function watchHover() {
         if (!inside) expandDwell = 0;
       } else {
         if (pressGrace && Date.now() > pressGraceUntil) pressGrace = false;
-        expandDwell = inside && !pressGrace ? expandDwell + 1 : 0;
-        wantExpand = expandDwell >= 2;
+        if (recentlyPlaced && Date.now() > placedUntil) recentlyPlaced = false;
+        // Expanding waits on a deliberate dwell; a flick across the pill or
+        // a grab that becomes a drag must never trigger the growth first.
+        const dwellNeeded = recentlyPlaced ? 6 : 3;
+        expandDwell = inside && !pressGrace && !recentlyPlaced ? expandDwell + 1 : 0;
+        wantExpand = expandDwell >= dwellNeeded;
       }
-      setHoverInteractive(wantExpand, wantExpand ? 'control' : null);
+      setHoverInteractive(true, expandState ? 'control' : 'drag');
       if (expandState !== wantExpand) {
         expandState = wantExpand;
         send('bird:expand', wantExpand);
-        morphToCard(wantExpand);
+        // A drag owns the window bounds: never start a resize under it.
+        if (!dragState) morphToCard(wantExpand);
       }
       return;
     }
@@ -508,9 +517,19 @@ let dragState = null;
 
 function startDrag() {
   if (!win || win.isDestroyed() || dragState) return;
-  // A grab commits to a drag: settle any in-flight morph so the window size
-  // is stable while it follows the cursor — two timers must never tug it.
-  finishMorph();
+  // Grabbing the docked island always drags the PILL: fold an open card
+  // back to the pill first, so a drag can never look like a growth.
+  if (settings.docked) {
+    clearInterval(morphTimer);
+    morphTimer = null;
+    expandState = false;
+    expandDwell = 0;
+    send('bird:expand', false);
+    const cur = win.getBounds();
+    const area = screen.getDisplayNearestPoint(cur).workArea;
+    const nx = Math.min(Math.max(cur.x, area.x), area.x + area.width - ISLAND_W);
+    win.setBounds({ x: nx, y: cur.y, width: ISLAND_W, height: ISLAND_H }, false);
+  }
   const point = screen.getCursorScreenPoint();
   const [x, y] = win.getPosition();
   win.setIgnoreMouseEvents(false);
@@ -547,7 +566,15 @@ function startDrag() {
       state.snapY = snapY;
       send('bird:snap', { x: snapX, y: snapY });
     }
-    win.setPosition(nx, ny);
+    // Dragging the docked island pins the pill's size on every tick: the
+    // window can only move, never grow, whatever else touches its bounds.
+    if (settings.docked) {
+      clearInterval(morphTimer);
+      morphTimer = null;
+      win.setBounds({ x: nx, y: ny, width: ISLAND_W, height: ISLAND_H }, false);
+    } else {
+      win.setPosition(nx, ny);
+    }
   }, 16);
   // A lost mouseup must not keep the window chasing the cursor forever.
   state.max = setTimeout(endDrag, 15000);
@@ -573,6 +600,10 @@ function endDrag() {
       send('bird:expand', false);
       settings.docked = true;
       win.setBounds(islandBounds(area), false);
+      // The cursor is still on the pill: give it a beat before it may
+      // expand again, or placing the island looks like it grew on its own.
+      recentlyPlaced = true;
+      placedUntil = Date.now() + 1200;
     } else if (settings.docked) {
       // Dragged away from the edge: undock and grow back to the card.
       expandState = false;
