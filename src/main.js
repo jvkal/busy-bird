@@ -621,9 +621,9 @@ function startDemo() {
   const quiet = process.argv.includes('--idle');
   const spawnRequest = () => {
     const agent = pick(DEMO_AGENTS);
-    // One agent demos the merged round trip: when the account belongs to the
-    // same vendor, the card collapses to a single chip and wire.
-    const accountId = agent === 'dsh' ? 'dsh/self-model' : pick(accounts);
+    // Same brand demos the merged round trip: a DeepSeek harness served by a
+    // DeepSeek account collapses to one chip and one wire.
+    const accountId = agent === 'dsh' ? 'deepseek/deepseek-v4' : pick(accounts);
     const route = {
       seq: seq++,
       id: 1792862888000 + nextId++,

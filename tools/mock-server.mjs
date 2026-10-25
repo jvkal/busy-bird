@@ -22,7 +22,7 @@ function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
 function spawnRequest() {
   const id = nextId++;
   const agent = pick(AGENTS);
-  const accountId = agent === 'dsh' ? 'dsh/self-model' : pick(ACCOUNTS);
+  const accountId = agent === 'dsh' ? 'deepseek/deepseek-v4' : pick(ACCOUNTS);
   const route = {
     seq: seq++,
     id,

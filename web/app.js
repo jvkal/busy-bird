@@ -120,7 +120,17 @@ function isMerged(route) {
   const id = String(accountOf(route)).toLowerCase();
   if (!id) return false;
   const provider = String(route?.order?.[0]?.provider || route?.provider || '').toLowerCase();
-  return id === agent || provider === agent || id.split('/')[0] === agent;
+  if (id === agent || provider === agent || id.split('/')[0] === agent) return true;
+  // One application: the agent and the vendor wear the same brand mark,
+  // so a DeepSeek harness on a DeepSeek account is a single round trip
+  // through magpie back to where it started.
+  const seat = route?.order?.[0] || {};
+  const vendorKey = brandKeyOf(seat.icon, 'provider')
+    || brandKeyOf(seat.provider || route?.provider, 'provider')
+    || brandKeyOf(id.split('/')[0], 'provider');
+  const brandAgent = brandKeyOf(route?.agent, 'agent');
+  const brandVendor = brandKeyOf(vendorKey, 'provider') || vendorKey;
+  return Boolean(brandAgent && brandVendor && brandAgent === brandVendor);
 }
 
 const succeeded = attempt => Number(attempt?.status) < 400 && !attempt.fail;
