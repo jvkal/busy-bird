@@ -15,6 +15,9 @@ const HUB = { left: 106, right: 154, y: 90, size: 34 };
 const AGENT_X = 66;
 const ACCOUNT_X = 194;
 const MAX_LANES = 3;
+// Vertical offsets for conversations that must share a lane, in a fan so
+// stacked wires stay a few pixels apart everywhere along the route.
+const STACK_OFFSETS = [0, 9, -9, 17, -17];
 // Lanes bunch toward the vertical center as the group count changes, so one
 // quiet request flies a straight line through the hub instead of the top rail.
 const laneY = (lane) => {
@@ -22,6 +25,9 @@ const laneY = (lane) => {
   const positions = count === 1 ? [90] : count === 2 ? [66, 114] : [44, 90, 136];
   return positions[Math.min(lane, positions.length - 1)];
 };
+// A conversation's wire height: its lane plus the offset it shares when more
+// conversations than lanes are open, so none hide exactly behind another.
+const lanePos = (group) => laneY(group.lane) + (group.dy || 0);
 const BAD = '#ff6b6b';
 const PALETTE = ['#a18bff', '#5be39a', '#61d7e7', '#ffb86b', '#ff7eb6', '#9ecbff', '#ffe066', '#7bd88f'];
 
@@ -212,8 +218,16 @@ function recomputeGroups() {
     if (seen.has(key)) continue;
     if (![...flights.values()].some(f => f.groupKey === key)) state.groups.delete(key);
   }
+  // More conversations than lanes: the overflow rides offset wires on its
+  // shared lane, so no card or bird ever stacks exactly behind another.
   let lane = 0;
-  for (const group of state.groups.values()) group.lane = Math.min(lane++, MAX_LANES - 1);
+  const stacked = new Map();
+  for (const group of state.groups.values()) {
+    group.lane = Math.min(lane++, MAX_LANES - 1);
+    const n = stacked.get(group.lane) || 0;
+    stacked.set(group.lane, n + 1);
+    group.dy = STACK_OFFSETS[Math.min(n, STACK_OFFSETS.length - 1)];
+  }
   for (const group of state.groups.values()) group.merged = isMerged(latestRouteOf(group) || {});
 }
 
@@ -243,7 +257,7 @@ function badgeText(route) {
 }
 
 function agentCard(group, accent, route, count, active) {
-  const y = laneY(group.lane);
+  const y = lanePos(group);
   const g = svgEl('g');
   g.style.setProperty('--c', accent);
   g.append(svgEl('rect', {
@@ -268,7 +282,7 @@ function agentCard(group, accent, route, count, active) {
 }
 
 function accountCard(group, accent, route, active) {
-  const y = laneY(group.lane);
+  const y = lanePos(group);
   const g = svgEl('g');
   g.style.setProperty('--c', accent);
   g.append(svgEl('rect', {
@@ -323,7 +337,7 @@ function render() {
   chips.innerHTML = '';
   for (const group of state.groups.values()) {
     const accent = accentOf(group);
-    const y = laneY(group.lane);
+    const y = lanePos(group);
     const route = latestRouteOf(group);
     const active = group.routes.some(id => requestActive(state.routes.get(String(id))));
     const attempt = (route?.tries || []).at(-1);
@@ -443,11 +457,26 @@ async function islandBirdLoop() {
     await islSleep(400);
     if (!document.body.classList.contains('docked')
       || document.body.classList.contains('expanded')) continue;
-    const sessions = [...state.groups.values()].slice(0, 3);
-    const current = sessions[islSessionIdx % Math.max(sessions.length, 1)] || null;
-    const active = current
-      ? current.routes.map(id2 => state.routes.get(String(id2))).filter(requestActive)
-      : [];
+    const sessions = [...state.groups.values()].slice(0, 3).map(g => ({ key: g.key, group: g }));
+    const activeOf = s => s.group.routes.map(id2 => state.routes.get(String(id2))).filter(requestActive);
+    let current = sessions[islSessionIdx % Math.max(sessions.length, 1)];
+    let active = current ? activeOf(current) : [];
+    // Follow the traffic: when several conversations run at once and the
+    // viewed one just went quiet, hop to a session that is still in flight —
+    // otherwise the courier seems to vanish under multi-session load.
+    if (!active.length) {
+      const hot = sessions.map(s => ({ s, a: activeOf(s) })).filter(x => x.a.length);
+      if (hot.length) {
+        hot.sort((x, y) => (Date.parse(y.a.at(-1).time) || 0) - (Date.parse(x.a.at(-1).time) || 0));
+        current = hot[0].s;
+        active = hot[0].a;
+        const idx = sessions.findIndex(s => s.key === current.key);
+        if (idx >= 0 && idx !== islSessionIdx) {
+          islSessionIdx = idx;
+          updateIsland();
+        }
+      }
+    }
     if (!active.length) {
       if (bird.visible) {
         bird.g.style.opacity = '0';
@@ -457,7 +486,7 @@ async function islandBirdLoop() {
     }
     const route = active.at(-1);
     const id = String(route.id);
-    const accent = current ? accentOf(current) : '#a18bff';
+    const accent = current ? accentOf(current.group) : '#a18bff';
     bird.g.style.setProperty('--agent', accent);
     if (bird.skin !== currentSkin()) {
       bird.skin = currentSkin();
@@ -651,7 +680,7 @@ const accentOf = group => state.settings?.themeColor || group.color;
 // ── flights ─────────────────────────────────────────────────────────────────
 
 function anchorsOf(flight) {
-  const y = laneY(flight.lane);
+  const y = laneY(flight.lane) + (flight.dy || 0);
   return {
     agent: { x: AGENT_X, y },
     account: { x: ACCOUNT_X, y },
@@ -771,13 +800,14 @@ function placeHolePacket(flight, x, y) {
 
 function holdAt(flight, where) {
   setPose(flight, `hold-${where}`);
-  const y = laneY(flight.lane);
+  const y = laneY(flight.lane) + (flight.dy || 0);
   const feet = (flight.feet ?? SKINS.bird.feet) * 0.8 - 2;
   if (where === 'hub') {
     flight.bird.setAttribute('transform', `translate(${HUB.left + 9} ${(HUB.y - 24 - feet).toFixed(1)}) scale(0.8)`);
     placeHolePacket(flight, HUB.left + 2, HUB.y);
   } else {
     flight.bird.setAttribute('transform', `translate(${ACCOUNT_X + 7} ${(y - 7 - feet).toFixed(1)}) scale(0.8)`);
+    // The waiting request must stay visible: glow at the channel's mouth.
     placeHolePacket(flight, ACCOUNT_X, y);
   }
 }
@@ -976,7 +1006,10 @@ function applyTrace(data) {
     if (route) {
       flight.route = route;
       const group = state.groups.get(flight.groupKey);
-      if (group && group.lane !== flight.lane) flight.lane = group.lane;
+      if (group && (group.lane !== flight.lane || (group.dy || 0) !== (flight.dy || 0))) {
+        flight.lane = group.lane;
+        flight.dy = group.dy || 0;
+      }
     } else if (!flight.dismissing) {
       fadeOut(flight);
     }
