@@ -433,10 +433,14 @@ function islFly(fromX, toX, ms) {
   });
 }
 
-function islWait(predicate) {
+function islWait(predicate, timeoutMs) {
   return new Promise((r) => {
+    const started = Date.now();
     const timer = window.setInterval(() => {
-      if (predicate()) { window.clearInterval(timer); r(); }
+      if (predicate() || (timeoutMs && Date.now() - started > timeoutMs)) {
+        window.clearInterval(timer);
+        r();
+      }
     }, 250);
   });
 }
@@ -517,7 +521,7 @@ async function islandBirdLoop() {
       await islWait(() => {
         const fresh = state.routes.get(id);
         return !fresh || fresh.done;
-      });
+      }, 240000);
       islHeart.style.opacity = '0';
       bird.g.classList.add('back');
       await islFly(168, 46, 1500);
@@ -536,21 +540,28 @@ async function islandBirdLoop() {
     // A courier perched still for minutes reads as stuck or broken. While
     // the answer is pending it patrols the wire — vendor to agent and back —
     // and settles at the vendor before riding home with the golden reply.
-    let islReady = false;
-    const islWatch = islWait(() => {
+    // A reply that never lands buys a bounded shift, not eternity.
+    const islDone = () => {
       const fresh = state.routes.get(id);
       return !fresh || fresh.done;
-    }).then(() => { islReady = true; });
+    };
+    const islDeadline = Date.now() + 240000;
     let atVendor = true;
-    while (!islReady) {
+    while (!islDone() && Date.now() <= islDeadline) {
       await islFly(atVendor ? 183 : 50, atVendor ? 50 : 183, 1200);
       atVendor = !atVendor;
-      if (islReady && !atVendor) {
+      if (islDone() && !atVendor) {
         await islFly(50, 183, 900);
         atVendor = true;
       }
     }
-    await islWatch;
+    if (!islDone()) {
+      // shift over without an answer: clock out quietly
+      islPacket.style.opacity = '0';
+      bird.g.style.opacity = '0';
+      bird.visible = false;
+      continue;
+    }
     // ride home with the golden answer
     islPacket.style.opacity = '0';
     bird.g.classList.add('back');
@@ -829,13 +840,17 @@ const LEGS_RETURN = [{ path: 'out', reverse: true }, { path: 'through', reverse:
 const LEGS_BACK_TO_HUB = [{ path: 'out', reverse: true }];
 const LEGS_HUB_TO_ACCOUNT = [{ path: 'out' }];
 const LEGS_HUB_HOME = [{ path: 'in', reverse: true }];
+const LEGS_AGENT_TO_ACCOUNT = [{ path: 'in' }, { path: 'through' }, { path: 'out' }];
 
 // While an answer is pending, a parked courier reads as stuck. It shuttles
-// out along the wire and back — each round trip landing on the very point
-// the next leg starts from — until the reply is ready to ride home.
+// along the FULL wire and back — each round trip landing on the very point
+// the next leg starts from — until the reply is ready to ride home. A reply
+// that never comes only buys the bird a bounded shift, not eternity.
 async function patrol(flight, ready, outLegs, backLegs) {
   setPose(flight, 'fly');
+  const deadline = Date.now() + 240000;
   while (!flight.cancelled && !ready(flight.route)) {
+    if (Date.now() > deadline) { fadeOut(flight); return false; }
     if (!await travel(flight, outLegs)) return false;
     if (!await travel(flight, backLegs)) return false;
   }
@@ -845,7 +860,7 @@ async function patrol(flight, ready, outLegs, backLegs) {
 // The crossing of the hub happens halfway through the through-leg. Read
 // lazily, AFTER the legs are built: the previous spec's legs are stale here.
 function crossingDistance(spec, flight) {
-  if (spec === LEGS_TO_ACCOUNT || spec === LEGS_RETURN) {
+  if (spec === LEGS_TO_ACCOUNT || spec === LEGS_RETURN || spec === LEGS_AGENT_TO_ACCOUNT) {
     return flight.legs[0].length + flight.legs[1].length / 2;
   }
   return -1;
@@ -857,6 +872,7 @@ const TRAVEL_MS = new Map([
   [LEGS_RETURN, 1350],
   [LEGS_BACK_TO_HUB, 620],
   [LEGS_HUB_TO_ACCOUNT, 780],
+  [LEGS_AGENT_TO_ACCOUNT, 1500],
 ]);
 
 function travel(flight, spec) {
@@ -865,10 +881,13 @@ function travel(flight, spec) {
 
 function waitFor(flight, predicate) {
   return new Promise((resolve) => {
+    // A reply that never arrives must not pin the courier forever: every
+    // wait has a hard deadline, after which the flight packs up and leaves.
+    const deadline = Date.now() + 180000;
     const timer = window.setInterval(() => {
-      if (flight.cancelled || predicate(flight.route)) {
+      if (flight.cancelled || predicate(flight.route) || Date.now() > deadline) {
         window.clearInterval(timer);
-        resolve(!flight.cancelled);
+        resolve(!flight.cancelled && predicate(flight.route));
       }
     }, 180);
   });
@@ -911,6 +930,12 @@ function dispose(flight) {
 function startFlight(route) {
   const id = String(route.id);
   const key = groupKeyOf(route);
+  // One courier per conversation: concurrent requests in the same chat used
+  // to spawn a flock of phase-locked birds that read as a stuck row. The
+  // newest request owns the wire; older birds retire at once.
+  for (const other of [...flights.values()]) {
+    if (other.groupKey === key && other.id !== id) dispose(other);
+  }
   const group = state.groups.get(key);
   const color = group ? group.color : colorFor(route.agent);
   const bird = svgEl('g', { class: 'flying-bird' });
@@ -949,7 +974,7 @@ async function runFlight(flight) {
     setPose(flight, 'fly');
     if (!await travel(flight, LEGS_TO_HUB)) return;
     if (!await patrol(flight, route => (route.tries || []).length > 0 || route.done,
-      LEGS_HUB_TO_ACCOUNT, LEGS_BACK_TO_HUB)) return;
+      LEGS_HUB_HOME, LEGS_TO_HUB)) return;
     let index = 0;
     while (!flight.cancelled) {
       const route = flight.route;
@@ -957,14 +982,14 @@ async function runFlight(flight) {
       if (!(route.tries || [])[index]) {
         holdAt(flight, 'hub');
         if (!await patrol(flight, r => Boolean((r.tries || [])[index]) || r.done,
-          LEGS_HUB_TO_ACCOUNT, LEGS_BACK_TO_HUB)) return;
+          LEGS_HUB_HOME, LEGS_TO_HUB)) return;
         if (flight.route.done && !(flight.route.tries || [])[index]) { fadeOut(flight); return; }
       }
       // Same agent and account: one wire, one burrow — the answer simply
       // comes back the way the request went in.
       if (flight.merged) {
         if (!await patrol(flight, r => Boolean((r.tries || [])[index]?.done),
-          LEGS_HUB_TO_ACCOUNT, LEGS_BACK_TO_HUB)) return;
+          LEGS_HUB_HOME, LEGS_TO_HUB)) return;
         const mergedAttempt = flight.route.tries[index];
         if (succeeded(mergedAttempt)) {
           await waitFor(flight, r => r.done);
@@ -990,7 +1015,7 @@ async function runFlight(flight) {
       setPose(flight, 'fly');
       if (!await travel(flight, LEGS_TO_ACCOUNT)) return;
       if (!await patrol(flight, r => Boolean((r.tries || [])[index]?.done),
-        LEGS_BACK_TO_HUB, LEGS_HUB_TO_ACCOUNT)) return;
+        LEGS_RETURN, LEGS_AGENT_TO_ACCOUNT)) return;
       const attempt = flight.route.tries[index];
       if (succeeded(attempt)) {
         await waitFor(flight, r => r.done);
