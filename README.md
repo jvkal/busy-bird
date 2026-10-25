@@ -30,6 +30,23 @@
 
 ## 安装
 
+### 下载现成的包（推荐，不需要装 Node）
+
+[v0.1.0 Release](https://github.com/jvkal/busy-bird/releases/latest) 里有一个 `BusyBird-0.1.0-win-x64.zip`（约 120 MB，自带 Electron 运行时）：
+
+1. 解压到 `%LOCALAPPDATA%\Programs\`，解压后应当是
+   `%LOCALAPPDATA%\Programs\Busy Bird\Busy Bird.exe`
+2. 双击 `Busy Bird.exe`，桌面右上角会出现挂件，托盘里多一只鸟
+3. 想让它跟着 magpie 自动起来，再装下面的启动器插件
+
+PowerShell 一条命令解压到位：
+
+```powershell
+Expand-Archive .\BusyBird-0.1.0-win-x64.zip "$env:LOCALAPPDATA\Programs" -Force
+```
+
+这个位置正好是插件默认查找的第一个正式安装路径，装完之后插件不需要任何环境变量就能把挂件拉起来。
+
 ### 作为 magpie 插件（启动器）
 
 ```bash
