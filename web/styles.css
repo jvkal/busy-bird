@@ -627,7 +627,7 @@ body.docked:not(.expanded) {
 
 @keyframes islMove {
   0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(154px); }
+  50% { transform: translateX(128px); }
 }
 
 /* ── the island's session pager: a manual selector, not a carousel ─────── */

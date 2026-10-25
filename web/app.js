@@ -512,7 +512,7 @@ async function islandBirdLoop() {
       islHeart.style.opacity = '1';
       flashClass(islHeart, 'pop', 900);
       islPacket.style.setProperty('--c', accent);
-      islPacket.setAttribute('transform', 'translate(196 20)');
+      islPacket.setAttribute('transform', 'translate(181 20)');
       islPacket.style.opacity = '1';
       await islWait(() => {
         const fresh = state.routes.get(id);
@@ -532,7 +532,7 @@ async function islandBirdLoop() {
     // The monkey stays visible — it reaches for the banana.
     bird.flier.style.opacity = bird.skin === 'monkey' ? '1' : '0';
     islPacket.style.setProperty('--c', accent);
-    islPacket.setAttribute('transform', 'translate(196 20)');
+    islPacket.setAttribute('transform', 'translate(181 20)');
     islPacket.style.opacity = '1';
     // the vendor beats its icon once: request received
     flashClass(islRight, 'pulse-once', 600);
@@ -592,8 +592,8 @@ function updateIsland() {
     comet.style.animationDelay = `${(-(i * 0.8)).toFixed(2)}s`;
     comet.style.animationDuration = `${(2.2 + i * 0.4).toFixed(2)}s`;
     comet.append(
-      svgEl('circle', { cx: 38, cy: 20, r: 2.2 }),
-      svgEl('circle', { class: 'tail', cx: 33, cy: 20, r: 1.1 }),
+      svgEl('circle', { cx: 50, cy: 20, r: 2.2 }),
+      svgEl('circle', { class: 'tail', cx: 45, cy: 20, r: 1.1 }),
     );
     islLights.append(comet);
     if (i >= 2) break;
