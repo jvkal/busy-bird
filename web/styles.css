@@ -615,12 +615,34 @@ body.docked:not(.expanded) {
   50% { transform: translateX(154px); }
 }
 
-.isl-dot {
-  fill: rgba(255, 255, 255, 0.25);
-  cursor: pointer;
+/* ── the island's session pager: a manual selector, not a carousel ─────── */
+
+.isl-pager {
+  fill: rgba(255, 255, 255, 0.07);
+  stroke: rgba(255, 255, 255, 0.10);
+  stroke-width: 0.5;
 }
 
-.isl-dot.on { fill: var(--c, #a18bff); }
+.isl-pager-hit {
+  fill: none;
+  pointer-events: all;
+}
+
+.isl-pager-item { cursor: pointer; }
+
+.isl-pager-dot {
+  fill: rgba(255, 255, 255, 0.32);
+  transition: fill 0.2s ease;
+}
+
+.isl-pager-item:hover .isl-pager-dot { fill: rgba(255, 255, 255, 0.75); }
+
+.isl-pager-item.on .isl-pager-dot {
+  fill: var(--c, #a18bff);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--c, #a18bff) 70%, transparent));
+}
+
+.isl-end { transition: opacity 0.25s ease; }
 
 .isl-end.slide-in { animation: islSlideIn 0.4s ease; }
 

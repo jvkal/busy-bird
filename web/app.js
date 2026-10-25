@@ -515,24 +515,31 @@ function updateIsland() {
   islLights.innerHTML = '';
   const groups = [...state.groups.values()];
   const active = groups.filter(g => g.routes.some(id => requestActive(state.routes.get(String(id)))));
-  const first = groups[0];
-  const accent = first ? accentOf(first) : '#a18bff';
+  // Multiple sessions are a manual choice, not a carousel: the dots below
+  // pick which agent+vendor pair the channel shows. Wheel or double-click
+  // steps through them; nothing moves unless you ask.
+  const sessions = groups.slice(0, 3);
+  islSessionCount = sessions.length;
+  if (islSessionIdx >= sessions.length) islSessionIdx = 0;
+  const current = sessions[islSessionIdx] || null;
+  const accent = current ? accentOf(current) : '#a18bff';
   const islandEl = document.getElementById('island');
   islandEl.classList.toggle('flow', active.length > 0);
   islandEl.style.setProperty('--c', accent);
-  // The island's two ends wear the brand icons of the agent and the vendor
-  // it is talking to; they persist between requests and only re-render when
-  // the pair actually changes, so idle renders never blink them away.
-  if (first) {
-    const route = latestRouteOf(first) || {};
+  // The island's two ends wear the brand icons of the viewed session; they
+  // persist between requests and only re-render when the pair changes.
+  if (current) {
+    const route = latestRouteOf(current) || {};
     const seat = route.order?.[0] || {};
-    const agentKey = brandKeyOf(first.agent, 'agent');
+    const agentKey = brandKeyOf(current.agent, 'agent');
     const vendorKey = brandKeyOf(seat.icon, 'provider')
       || brandKeyOf(seat.provider || route.provider, 'provider');
     if (agentKey !== islEndKeys.left || vendorKey !== islEndKeys.right) {
       islEndKeys = { left: agentKey, right: vendorKey };
       setIslandEnd(islLeft, agentKey, accent);
       setIslandEnd(islRight, vendorKey, accent);
+      flashClass(islLeft, 'slide-in', 450);
+      flashClass(islRight, 'slide-in', 450);
     }
   }
   // Comets: a bright head with a small trailing tail, one per active request.
@@ -542,8 +549,8 @@ function updateIsland() {
     comet.style.animationDelay = `${(-(i * 0.8)).toFixed(2)}s`;
     comet.style.animationDuration = `${(2.2 + i * 0.4).toFixed(2)}s`;
     comet.append(
-      svgEl('circle', { cx: 38, cy: 21, r: 2.2 }),
-      svgEl('circle', { class: 'tail', cx: 33, cy: 21, r: 1.1 }),
+      svgEl('circle', { cx: 38, cy: 30, r: 2.2 }),
+      svgEl('circle', { class: 'tail', cx: 33, cy: 30, r: 1.1 }),
     );
     islLights.append(comet);
     if (i >= 2) break;
@@ -552,6 +559,7 @@ function updateIsland() {
   text.textContent = active.length
     ? `${active.length} 个请求`
     : `${fmtTokens(usageTotal(state.usage))} tok`;
+  drawIslandDots(sessions);
 }
 
 let islGirl = null;
@@ -589,30 +597,32 @@ function drawIslandDots(sessions) {
   if (!dots) return;
   dots.innerHTML = '';
   if (sessions.length <= 1) return;
+  // A pager strip: the viewed session is a glowing dash, the rest are dots,
+  // all sitting in a faint capsule and each with a generous hit target.
+  const spacing = 14;
+  const width = (sessions.length - 1) * spacing + 24;
+  dots.append(svgEl('rect', {
+    class: 'isl-pager', x: 115 - width / 2, y: 32.8, width, height: 8.6, rx: 4.3,
+  }));
   sessions.forEach((session, i) => {
-    const dot = svgEl('circle', {
-      class: `isl-dot${i === islSessionIdx ? ' on' : ''}`,
-      cx: 115 + (i - (sessions.length - 1) / 2) * 12,
-      cy: 40, r: 1.6,
-    });
-    dot.addEventListener('click', (event) => {
+    const x = 115 + (i - (sessions.length - 1) / 2) * spacing;
+    const item = svgEl('g', { class: `isl-pager-item${i === islSessionIdx ? ' on' : ''}` });
+    const tip = svgEl('title');
+    tip.textContent = capFirst(AGENT_NAMES[session.agent] || session.agent || '未知');
+    item.append(svgEl('circle', { class: 'isl-pager-hit', cx: x, cy: 37.1, r: 5.8 }), tip);
+    if (i === islSessionIdx) {
+      item.append(svgEl('rect', { class: 'isl-pager-dot', x: x - 4.5, y: 35.7, width: 9, height: 2.8, rx: 1.4 }));
+    } else {
+      item.append(svgEl('circle', { class: 'isl-pager-dot', cx: x, cy: 37.1, r: 1.7 }));
+    }
+    item.addEventListener('mousedown', (event) => event.stopPropagation());
+    item.addEventListener('click', (event) => {
       event.stopPropagation();
       islSessionIdx = i;
       updateIsland();
     });
-    dots.append(dot);
+    dots.append(item);
   });
-}
-
-function manageIslandAutoAdvance(sessions) {
-  clearInterval(islAutoTimer);
-  islAutoTimer = null;
-  if (sessions.length > 1) {
-    islAutoTimer = setInterval(() => {
-      islSessionIdx = (islSessionIdx + 1) % sessions.length;
-      updateIsland();
-    }, 5000);
-  }
 }
 
 function islandSlide(dir) {
