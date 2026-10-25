@@ -4,10 +4,16 @@
 
 **A tiny transparent perch where a bird carries every magpie request.**
 
-一张 260×160 的透明、无边框、可点击穿透的桌面小卡片。一张栖息着一只小喜鹊：magpie 里每出现一个请求，就有一只戴着该 Agent 颜色的鸟儿从左侧 Agent 出发，穿过中间的 magpie 栖木，飞到右边的账号上等待回答，再把结果带回 Agent。空闲时，栖木上的喜鹊会蹦一蹦、抖抖翅膀。
+一张透明、无边框、可点击穿透的桌面小卡片，栖息着一只小喜鹊：magpie 里每出现一个请求，就有一只戴着该 Agent 颜色的鸟儿从左侧 Agent 出发，穿过中间的 magpie 栖木，飞到右边的账号上等待回答，再把结果带回 Agent。空闲时，栖木上的喜鹊会蹦一蹦、抖抖翅膀。
+
+**做它的理由很简单**：不想为了看一眼 magpie 在干什么就切窗口。挂着这张卡片，鸟在飞就说明有请求在跑，鸟停在栖木上就说明一切安静。
 
 <p align="center">
-  <img src="./docs/screenshots/bird.png" alt="Busy Bird 截图" width="360">
+  <img src="./docs/screenshots/card.png" alt="桌面卡片：一只鸟正穿过 magpie 栖木" width="330">
+  <img src="./docs/screenshots/stats.png" alt="用量统计面板" width="300">
+</p>
+<p align="center">
+  <img src="./docs/screenshots/island.png" alt="灵动岛模式：吸附在屏幕顶部的一条胶囊" width="300">
 </p>
 
 [![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-4b465c?style=flat-square)](#)
