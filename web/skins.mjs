@@ -4,11 +4,15 @@
 
 export const SKIN_ORDER = ['bird', 'car', 'kiss', 'monkey'];
 
+// Where the courier holds the request packet, in the sprite's own local
+// coordinates (facing right). The packet lives inside the same transformed
+// group as the body, so flips and pitch keep it glued to the mouth.
 export const SKINS = {
   bird: {
     label: '小鸟',
     emoji: '🐦',
     feet: 3,
+    beak: { x: 2.4, y: -3.0 },
     build: () => `
       <g class="skin-bird">
         <path class="wing far" d="M-14.5 -3.4C-16.5 -9.5 -14.2 -15 -8.6 -18.6C-9.4 -12.6 -9.6 -7.4 -9.2 -3.2Z"/>
@@ -29,6 +33,7 @@ export const SKINS = {
     // short trunk at the rear (left) with a red tail light, windshield
     // sloping back from the roof — plus wheels that meet the wire at y=0.
     feet: 0,
+    beak: { x: 17.6, y: -4.4 },
     build: () => `
       <g class="skin-car">
         <path class="c-body" d="M-16.8 -2.6 Q-18 -7.4 -13 -8 L-9.6 -8.6 L-6 -13.2 L2.4 -13.2 L12.6 -7.9 L16.6 -6.7 Q18 -3.8 16.2 -2.6 Z"/>
@@ -48,6 +53,7 @@ export const SKINS = {
     label: '亲嘴',
     emoji: '💋',
     feet: 5.6,
+    beak: { x: 4.4, y: -3.2 },
     build: () => `
       <g class="skin-kiss">
         <g class="k-boy">
@@ -65,6 +71,7 @@ export const SKINS = {
     label: '猴子',
     emoji: '🐒',
     feet: 5.5,
+    beak: { x: 13.2, y: -4.8 },
     build: () => `
       <g class="skin-monkey">
         <path class="m-tail" d="M-10.5 1.5 Q-17 4.5 -14.5 -3.5"/>

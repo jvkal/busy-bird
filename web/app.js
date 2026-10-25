@@ -395,7 +395,8 @@ function ensureIslandBird() {
   g.style.opacity = '0';
   const flier = svgEl('g', { class: 'flier' });
   flier.innerHTML = SKINS[currentSkin()].build();
-  const packet = svgEl('circle', { class: 'packet', r: 2 });
+  const beak = SKINS[currentSkin()].beak;
+  const packet = svgEl('circle', { class: 'packet', r: 2, cx: beak.x, cy: beak.y });
   g.append(flier, packet);
   islBirds.append(g);
   islBird = { g, flier, packet, visible: false, skin: currentSkin() };
@@ -495,6 +496,9 @@ async function islandBirdLoop() {
     if (bird.skin !== currentSkin()) {
       bird.skin = currentSkin();
       bird.flier.innerHTML = SKINS[bird.skin].build();
+      const beak = SKINS[bird.skin].beak;
+      bird.packet.setAttribute('cx', beak.x);
+      bird.packet.setAttribute('cy', beak.y);
     }
     if (!bird.visible) {
       // appear on the wire, just off the agent's icon
@@ -943,7 +947,8 @@ function startFlight(route) {
   bird.style.opacity = '0';
   const flier = svgEl('g', { class: `flier f-${currentSkin()}` });
   flier.innerHTML = SKINS[currentSkin()].build();
-  const packet = svgEl('circle', { class: 'packet', r: 3, cx: 0, cy: 0 });
+  const beak = SKINS[currentSkin()].beak;
+  const packet = svgEl('circle', { class: 'packet', r: 3, cx: beak.x, cy: beak.y });
   bird.append(flier, packet);
   const guides = svgEl('g');
   const paths = ['in', 'out', 'through'].map(() => {
