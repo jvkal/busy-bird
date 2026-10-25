@@ -392,7 +392,7 @@ const islSleep = ms => new Promise(r => window.setTimeout(r, ms));
 
 // The moving group is positioned so the sprite's own feet/wheels touch the
 // wire; each skin carries its own feet offset in local units.
-const groundY = (skin) => 20 - SKINS[skin].feet * 0.4;
+const groundY = (skin) => 20 - SKINS[skin].feet * 0.5;
 
 function islFly(fromX, toX, ms) {
   // The bird arcs over the wire; wheeled and walking couriers stay on it,
@@ -412,7 +412,7 @@ function islFly(fromX, toX, ms) {
       else if (skin === 'monkey') y = base - Math.abs(Math.sin(k * Math.PI * 6)) * 1.1;
       else y = base - Math.abs(Math.sin(k * Math.PI * 8)) * 0.8;
       const flip = toX < fromX ? -1 : 1;
-      islBird.g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${flip * 0.4} 0.4)`);
+      islBird.g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${flip * 0.5} 0.5)`);
       if (t < 1) requestAnimationFrame(step); else resolve();
     };
     requestAnimationFrame(step);
@@ -465,7 +465,7 @@ async function islandBirdLoop() {
     }
     if (!bird.visible) {
       // appear on the wire, just off the agent's icon
-      bird.g.setAttribute('transform', `translate(42 ${groundY(bird.skin).toFixed(1)}) scale(0.4)`);
+      bird.g.setAttribute('transform', `translate(46 ${groundY(bird.skin).toFixed(1)}) scale(0.5)`);
       bird.g.style.opacity = '1';
       bird.visible = true;
       await islSleep(250);
@@ -478,7 +478,7 @@ async function islandBirdLoop() {
       // walks home when it's done.
       ensureIslandCast();
       islGirl.style.opacity = '1';
-      await islFly(42, 168, 1100);
+      await islFly(46, 168, 1100);
       islHeart.style.setProperty('--c', accent);
       islHeart.style.opacity = '1';
       flashClass(islHeart, 'pop', 900);
@@ -491,14 +491,14 @@ async function islandBirdLoop() {
       });
       islHeart.style.opacity = '0';
       bird.g.classList.add('back');
-      await islFly(168, 42, 1500);
+      await islFly(168, 46, 1500);
       bird.g.classList.remove('back');
       islGirl.style.opacity = '0';
       bird.g.style.opacity = '0';
       bird.visible = false;
       continue;
     }
-    await islFly(42, 192, 1100);
+    await islFly(46, 183, 1100);
     // tucked into the vendor chip: the request glows there while waiting.
     // The monkey stays visible — it reaches for the banana.
     bird.flier.style.opacity = bird.skin === 'monkey' ? '1' : '0';
@@ -515,7 +515,7 @@ async function islandBirdLoop() {
     islPacket.style.opacity = '0';
     bird.g.classList.add('back');
     bird.flier.style.opacity = '1';
-    await islFly(192, 42, 1500);
+    await islFly(183, 46, 1500);
     bird.g.classList.remove('back');
     // the agent spins its thinking arc once, over the answer, then rests
     flashClass(islLeft, 'think-once', 1000);
@@ -624,9 +624,9 @@ function drawIslandDots(sessions) {
     tip.textContent = capFirst(AGENT_NAMES[session.agent] || session.agent || '未知');
     item.append(svgEl('circle', { class: 'isl-pager-hit', cx: x, cy: 28.5, r: 5.4 }), tip);
     if (i === islSessionIdx) {
-      item.append(svgEl('rect', { class: 'isl-pager-dot', x: x - 4.5, y: 27.1, width: 9, height: 2.8, rx: 1.4 }));
+      item.append(svgEl('circle', { class: 'isl-pager-dot', cx: x, cy: 28.5, r: 2.3 }));
     } else {
-      item.append(svgEl('circle', { class: 'isl-pager-dot', cx: x, cy: 28.5, r: 1.7 }));
+      item.append(svgEl('circle', { class: 'isl-pager-dot', cx: x, cy: 28.5, r: 1.6 }));
     }
     item.addEventListener('mousedown', (event) => event.stopPropagation());
     item.addEventListener('click', (event) => {
@@ -697,7 +697,7 @@ function flightPoint(flight, distance) {
   return path.getPointAtLength(reverse ? length - remaining : remaining);
 }
 
-function poseBird(flight, p, vx, vy, scale = 0.72) {
+function poseBird(flight, p, vx, vy, scale = 0.8) {
   const flip = vx < 0 ? -1 : 1;
   const aim = Math.max(-22, Math.min(22, Math.atan2(vy, Math.abs(vx) || 1) * 180 / Math.PI));
   if (flight.aim === null || flight.aimFlip !== (vx < 0)) flight.aim = aim;
@@ -776,12 +776,12 @@ function placeHolePacket(flight, x, y) {
 function holdAt(flight, where) {
   setPose(flight, `hold-${where}`);
   const y = laneY(flight.lane);
-  const feet = (flight.feet ?? SKINS.bird.feet) * 0.72 - 2;
+  const feet = (flight.feet ?? SKINS.bird.feet) * 0.8 - 2;
   if (where === 'hub') {
-    flight.bird.setAttribute('transform', `translate(${HUB.left + 9} ${(HUB.y - 24 - feet).toFixed(1)}) scale(0.72)`);
+    flight.bird.setAttribute('transform', `translate(${HUB.left + 9} ${(HUB.y - 24 - feet).toFixed(1)}) scale(0.8)`);
     placeHolePacket(flight, HUB.left + 2, HUB.y);
   } else {
-    flight.bird.setAttribute('transform', `translate(${ACCOUNT_X + 7} ${(y - 7 - feet).toFixed(1)}) scale(0.72)`);
+    flight.bird.setAttribute('transform', `translate(${ACCOUNT_X + 7} ${(y - 7 - feet).toFixed(1)}) scale(0.8)`);
     placeHolePacket(flight, ACCOUNT_X, y);
   }
 }

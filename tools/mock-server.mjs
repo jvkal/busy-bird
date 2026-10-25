@@ -111,13 +111,25 @@ http.createServer((request, response) => {
     return;
   }
   if (url.pathname === '/v1/magpie/usage') {
+    const hourly = url.searchParams.get('bucket') === 'hour';
+    const series = hourly
+      ? Array.from({ length: 24 }, (_, h) => ({
+        label: String(h).padStart(2, '0'),
+        time: new Date(new Date().setHours(h, 0, 0, 0)).toISOString(),
+        calls: h <= new Date().getHours() ? Math.floor(Math.random() * 120) : 0,
+        input: 0, output: 0, cache_read: 0, cache_write: 0, reasoning: 0,
+      }))
+      : [{ label: 'today', calls: 128, input: usageIn, output: usageOut }];
     response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({
       period: url.searchParams.get('period') || 'today',
+      bucket: hourly ? 'hour' : 'day',
+      series,
       since: new Date(Date.now() - 86400000).toISOString(),
       calls: 128, errors: 2, retried: 3,
       input: usageIn, output: usageOut, cache_read: 18200000, cache_write: 0,
       reasoning: 120000, cost: 1.42, unpriced: 0,
+      decode_out: 233400, decode_ms: 3300000,
     }));
     return;
   }

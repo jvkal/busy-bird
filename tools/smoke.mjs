@@ -67,6 +67,12 @@ async function main() {
   check('island courier element exists', await evaluate('document.querySelectorAll(".isl-bird .flier > g").length > 0'));
   check('skin css loaded', await evaluate('document.querySelectorAll("style,link[href*=styles]").length > 0 && Boolean(document.querySelector(".isl-bird"))'));
 
+  // 5. the island pager marks sessions with round dots, never flat bars
+  check('island pager uses round dots', await evaluate(`(() => {
+    const dots = [...document.querySelectorAll('.isl-pager-dot')];
+    return dots.length === 0 || dots.every(d => d.tagName.toLowerCase() === 'circle');
+  })()`));
+
   // 5. stats card opens and fills from the usage API
   await evaluate('document.getElementById("statDot").click()');
   await sleep(1500);
