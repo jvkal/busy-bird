@@ -571,10 +571,16 @@ function startDrag() {
     if (settings.docked) {
       clearInterval(morphTimer);
       morphTimer = null;
+      if (expandState) {
+        expandState = false;
+        expandDwell = 0;
+        send('bird:expand', false);
+      }
       win.setBounds({ x: nx, y: ny, width: ISLAND_W, height: ISLAND_H }, false);
     } else {
       win.setPosition(nx, ny);
     }
+    state.moved = true;
   }, 16);
   // A lost mouseup must not keep the window chasing the cursor forever.
   state.max = setTimeout(endDrag, 15000);
@@ -583,6 +589,7 @@ function startDrag() {
 
 function endDrag() {
   if (!dragState) return;
+  const moved = dragState.moved;
   clearInterval(dragState.timer);
   clearTimeout(dragState.max);
   dragState = null;
@@ -593,7 +600,7 @@ function endDrag() {
     const nowCenterX = bounds.x + Math.round(bounds.width / 2);
     const nearTopCenter = bounds.y <= area.y + 20
       && Math.abs(nowCenterX - (area.x + Math.round(area.width / 2))) <= 60;
-    if (nearTopCenter) {
+    if (moved && nearTopCenter) {
       // Dropped on the top-centre edge: dock. The window itself becomes the
       // island — the two modes never share space.
       expandState = false;
@@ -604,7 +611,7 @@ function endDrag() {
       // expand again, or placing the island looks like it grew on its own.
       recentlyPlaced = true;
       placedUntil = Date.now() + 1200;
-    } else if (settings.docked) {
+    } else if (moved && settings.docked) {
       // Dragged away from the edge: undock and grow back to the card.
       expandState = false;
       send('bird:expand', false);

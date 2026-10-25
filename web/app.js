@@ -1179,17 +1179,16 @@ $('resetPlace').addEventListener('click', () => window.bird?.resetPlace());
 
 pill.addEventListener('click', () => window.bird?.periodNext());
 
-// A press on the top strip or the island may become a drag: move past a
-// small threshold or hold briefly, and the window follows the cursor.
-// Plain clicks still land on the pill and dots — the whole bar drags now,
-// not just the slivers between buttons.
+// A press on the top strip or the island becomes a drag once the cursor
+// travels past a few pixels — or after a deliberate hold: dragging a docked
+// card first snaps it back to the pill (the main process pins the pill's
+// size on every drag tick), so a move can only reposition, never grow.
+// Growth only ever comes from a hover dwell. A plain click stays a click.
 function grabPress(event) {
   if (event.button !== 0) return;
   const startX = event.screenX;
   const startY = event.screenY;
   let dragging = false;
-  // Tell the main process a press began: grabbing is a drag, never the
-  // dwell that expands the island — so a drag can't trip a resize.
   window.bird?.press(true);
   const begin = () => {
     if (dragging) return;
@@ -1205,10 +1204,11 @@ function grabPress(event) {
     window.clearTimeout(timer);
     window.removeEventListener('mousemove', move);
     window.removeEventListener('mouseup', up);
-    window.bird?.dragEnd();
+    if (dragging) window.bird?.dragEnd();
     window.bird?.press(false);
   };
-  const timer = window.setTimeout(begin, 160);
+  // 400ms: longer than any ordinary click, shorter than a deliberate grab.
+  const timer = window.setTimeout(begin, 400);
   window.addEventListener('mousemove', move);
   window.addEventListener('mouseup', up);
 }
