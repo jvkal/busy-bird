@@ -390,11 +390,16 @@ function ensureIslandBird() {
 
 const islSleep = ms => new Promise(r => window.setTimeout(r, ms));
 
+// The moving group is positioned so the sprite's own feet/wheels touch the
+// wire; each skin carries its own feet offset in local units.
+const groundY = (skin) => 30 - SKINS[skin].feet * 0.4;
+
 function islFly(fromX, toX, ms) {
   // The bird arcs over the wire; wheeled and walking couriers stay on it,
   // each with its own gait.
   const skin = currentSkin();
   const ground = skin !== 'bird';
+  const base = groundY(skin);
   return new Promise((resolve) => {
     const started = performance.now();
     const step = (now) => {
@@ -403,9 +408,9 @@ function islFly(fromX, toX, ms) {
       const x = fromX + (toX - fromX) * k;
       let y;
       if (!ground) y = 28.8 - Math.sin(k * Math.PI) * 4;
-      else if (skin === 'car') y = 28.8 + Math.sin(k * Math.PI * 5) * 0.6;
-      else if (skin === 'monkey') y = 28.8 - Math.abs(Math.sin(k * Math.PI * 6)) * 1.1;
-      else y = 28.8 - Math.abs(Math.sin(k * Math.PI * 8)) * 0.8;
+      else if (skin === 'car') y = base + Math.sin(k * Math.PI * 5) * 0.6;
+      else if (skin === 'monkey') y = base - Math.abs(Math.sin(k * Math.PI * 6)) * 1.1;
+      else y = base - Math.abs(Math.sin(k * Math.PI * 8)) * 0.8;
       const flip = toX < fromX ? -1 : 1;
       islBird.g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${flip * 0.4} 0.4)`);
       if (t < 1) requestAnimationFrame(step); else resolve();
@@ -460,7 +465,7 @@ async function islandBirdLoop() {
     }
     if (!bird.visible) {
       // appear on the wire, just off the agent's icon
-      bird.g.setAttribute('transform', 'translate(42 28.8) scale(0.4)');
+      bird.g.setAttribute('transform', `translate(42 ${groundY(bird.skin).toFixed(1)}) scale(0.4)`);
       bird.g.style.opacity = '1';
       bird.visible = true;
       await islSleep(250);
@@ -698,8 +703,10 @@ function poseBird(flight, p, vx, vy, scale = 0.72) {
   if (flight.aim === null || flight.aimFlip !== (vx < 0)) flight.aim = aim;
   else flight.aim += (aim - flight.aim) * 0.14;
   flight.aimFlip = vx < 0;
+  // Ground couriers ride the wire: lift the sprite by its own feet offset.
+  const y = p.y - (flight.feet ?? SKINS.bird.feet) * scale;
   flight.bird.setAttribute('transform',
-    `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)}) scale(${flip * scale} ${scale}) rotate(${flight.aim.toFixed(2)})`);
+    `translate(${p.x.toFixed(2)} ${y.toFixed(2)}) scale(${flip * scale} ${scale}) rotate(${flight.aim.toFixed(2)})`);
 }
 
 function ripple() {
@@ -769,11 +776,12 @@ function placeHolePacket(flight, x, y) {
 function holdAt(flight, where) {
   setPose(flight, `hold-${where}`);
   const y = laneY(flight.lane);
+  const feet = (flight.feet ?? SKINS.bird.feet) * 0.72 - 2;
   if (where === 'hub') {
-    flight.bird.setAttribute('transform', `translate(${HUB.left + 9} ${HUB.y - 24}) scale(0.72)`);
+    flight.bird.setAttribute('transform', `translate(${HUB.left + 9} ${(HUB.y - 24 - feet).toFixed(1)}) scale(0.72)`);
     placeHolePacket(flight, HUB.left + 2, HUB.y);
   } else {
-    flight.bird.setAttribute('transform', `translate(${ACCOUNT_X + 7} ${y - 7}) scale(0.72)`);
+    flight.bird.setAttribute('transform', `translate(${ACCOUNT_X + 7} ${(y - 7 - feet).toFixed(1)}) scale(0.72)`);
     placeHolePacket(flight, ACCOUNT_X, y);
   }
 }
@@ -852,11 +860,13 @@ function startFlight(route) {
     return path;
   });
   birdsLayer.append(guides, bird);
+  const skin = currentSkin();
   const flight = {
     id, groupKey: key, route, bird, flier, packet, guides, paths,
     lane: group ? group.lane : 0, geoKey: '', legs: [], length: 0,
     aim: null, aimFlip: false, cancelled: false, dismissing: false,
     accent: color, holePacket: null, merged: Boolean(group?.merged),
+    skin, feet: SKINS[skin].feet,
   };
   flights.set(id, flight);
   window.requestAnimationFrame(() => { bird.style.opacity = '1'; });

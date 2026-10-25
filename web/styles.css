@@ -712,15 +712,26 @@ body.docked:not(.expanded) {
 
 .skin-car .c-light { fill: #ffe9a8; }
 
-.skin-car .c-wheel { animation: wheelSpin 0.5s linear infinite; }
-
-.skin-car .c-wheel circle {
-  fill: #101018;
+.skin-car .c-tire {
+  fill: #14141c;
   stroke: #d8d8e0;
-  stroke-width: 0.8;
+  stroke-width: 0.7;
 }
 
-.skin-car .c-wheel line { stroke: #d8d8e0; stroke-width: 0.8; }
+.skin-car .c-hub { fill: #d8d8e0; }
+
+/* Each wheel spins about its own axle, not the middle of the car. */
+.skin-car .c-spoke {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: wheelSpin 0.5s linear infinite;
+}
+
+.skin-car .c-spoke line {
+  stroke: #d8d8e0;
+  stroke-width: 0.8;
+  stroke-linecap: round;
+}
 
 @keyframes wheelSpin {
   to { transform: rotate(360deg); }

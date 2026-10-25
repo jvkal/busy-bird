@@ -8,6 +8,7 @@ export const SKINS = {
   bird: {
     label: '小鸟',
     emoji: '🐦',
+    feet: 3,
     build: () => `
       <g class="skin-bird">
         <path class="wing far" d="M-14.5 -3.4C-16.5 -9.5 -14.2 -15 -8.6 -18.6C-9.4 -12.6 -9.6 -7.4 -9.2 -3.2Z"/>
@@ -24,19 +25,27 @@ export const SKINS = {
   car: {
     label: '小车',
     emoji: '🚗',
+    // The wheels meet the road at the sprite's own y=0, so the courier rides
+    // along the wire instead of dangling above it.
+    feet: 0,
     build: () => `
       <g class="skin-car">
-        <path class="c-body" d="M-17 2.5 Q-18 -2.5 -12 -3 L-3 -3.5 Q0 -9.5 7 -9.5 L11 -9.5 Q16.5 -9.5 17 -3.5 Q18.5 2.5 14 2.5 Z"/>
-        <path class="c-cabin" d="M-2 -3.5 Q0.5 -8.5 6.5 -8.5 L10 -8.5 L10 -3.5 Z"/>
-        <rect class="c-light" x="14.6" y="-1.8" width="2.6" height="1.8" rx="0.9"/>
-        <g class="c-wheel"><circle cx="-9.5" cy="2.6" r="3.6"/><line x1="-9.5" y1="0.4" x2="-9.5" y2="4.8"/><line x1="-11.7" y1="2.6" x2="-7.3" y2="2.6"/></g>
-        <g class="c-wheel"><circle cx="9.5" cy="2.6" r="3.6"/><line x1="9.5" y1="0.4" x2="9.5" y2="4.8"/><line x1="7.3" y1="2.6" x2="11.7" y2="2.6"/></g>
+        <path class="c-body" d="M-17 -2.2 Q-18.2 -6.8 -12.4 -7.3 L-3.6 -7.9 Q-0.6 -13.9 6.1 -13.9 L10.4 -13.9 Q16.1 -13.9 16.7 -7.7 Q18.4 -2.2 13.6 -2.2 Z"/>
+        <path class="c-cabin" d="M-2.3 -7.9 Q0.1 -12.7 5.7 -12.7 L9.5 -12.7 L9.5 -7.9 Z"/>
+        <rect class="c-light" x="14.3" y="-6.3" width="2.6" height="1.8" rx="0.9"/>
+        <circle class="c-tire" cx="-9.5" cy="-3.2" r="3.3"/>
+        <circle class="c-tire" cx="9.5" cy="-3.2" r="3.3"/>
+        <g class="c-spoke"><line x1="-9.5" y1="-5.5" x2="-9.5" y2="-0.9"/><line x1="-11.8" y1="-3.2" x2="-7.2" y2="-3.2"/></g>
+        <g class="c-spoke"><line x1="9.5" y1="-5.5" x2="9.5" y2="-0.9"/><line x1="7.2" y1="-3.2" x2="11.8" y2="-3.2"/></g>
+        <circle class="c-hub" cx="-9.5" cy="-3.2" r="0.9"/>
+        <circle class="c-hub" cx="9.5" cy="-3.2" r="0.9"/>
       </g>`,
   },
 
   kiss: {
     label: '亲嘴',
     emoji: '💋',
+    feet: 5.6,
     build: () => `
       <g class="skin-kiss">
         <g class="k-boy">
@@ -53,6 +62,7 @@ export const SKINS = {
   monkey: {
     label: '猴子',
     emoji: '🐒',
+    feet: 5.5,
     build: () => `
       <g class="skin-monkey">
         <path class="m-tail" d="M-10.5 1.5 Q-17 4.5 -14.5 -3.5"/>
