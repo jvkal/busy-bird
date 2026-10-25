@@ -392,7 +392,7 @@ const islSleep = ms => new Promise(r => window.setTimeout(r, ms));
 
 // The moving group is positioned so the sprite's own feet/wheels touch the
 // wire; each skin carries its own feet offset in local units.
-const groundY = (skin) => 30 - SKINS[skin].feet * 0.4;
+const groundY = (skin) => 20 - SKINS[skin].feet * 0.4;
 
 function islFly(fromX, toX, ms) {
   // The bird arcs over the wire; wheeled and walking couriers stay on it,
@@ -407,7 +407,7 @@ function islFly(fromX, toX, ms) {
       const k = glideProgress(t);
       const x = fromX + (toX - fromX) * k;
       let y;
-      if (!ground) y = 28.8 - Math.sin(k * Math.PI) * 4;
+      if (!ground) y = 18.8 - Math.sin(k * Math.PI) * 4;
       else if (skin === 'car') y = base + Math.sin(k * Math.PI * 5) * 0.6;
       else if (skin === 'monkey') y = base - Math.abs(Math.sin(k * Math.PI * 6)) * 1.1;
       else y = base - Math.abs(Math.sin(k * Math.PI * 8)) * 0.8;
@@ -483,7 +483,7 @@ async function islandBirdLoop() {
       islHeart.style.opacity = '1';
       flashClass(islHeart, 'pop', 900);
       islPacket.style.setProperty('--c', accent);
-      islPacket.setAttribute('transform', 'translate(196 30)');
+      islPacket.setAttribute('transform', 'translate(196 20)');
       islPacket.style.opacity = '1';
       await islWait(() => {
         const fresh = state.routes.get(id);
@@ -503,7 +503,7 @@ async function islandBirdLoop() {
     // The monkey stays visible — it reaches for the banana.
     bird.flier.style.opacity = bird.skin === 'monkey' ? '1' : '0';
     islPacket.style.setProperty('--c', accent);
-    islPacket.setAttribute('transform', 'translate(196 30)');
+    islPacket.setAttribute('transform', 'translate(196 20)');
     islPacket.style.opacity = '1';
     // the vendor beats its icon once: request received
     flashClass(islRight, 'pulse-once', 600);
@@ -563,8 +563,8 @@ function updateIsland() {
     comet.style.animationDelay = `${(-(i * 0.8)).toFixed(2)}s`;
     comet.style.animationDuration = `${(2.2 + i * 0.4).toFixed(2)}s`;
     comet.append(
-      svgEl('circle', { cx: 38, cy: 30, r: 2.2 }),
-      svgEl('circle', { class: 'tail', cx: 33, cy: 30, r: 1.1 }),
+      svgEl('circle', { cx: 38, cy: 20, r: 2.2 }),
+      svgEl('circle', { class: 'tail', cx: 33, cy: 20, r: 1.1 }),
     );
     islLights.append(comet);
     if (i >= 2) break;
@@ -582,10 +582,10 @@ function ensureIslandCast() {
   if (islGirl) return;
   islGirl = svgEl('g', { class: 'isl-cast', opacity: '0' });
   islGirl.innerHTML = KISS_GIRL;
-  islGirl.setAttribute('transform', 'translate(178 25)');
+  islGirl.setAttribute('transform', 'translate(178 15)');
   islHeart = svgEl('g', { class: 'isl-cast', opacity: '0' });
   islHeart.innerHTML = KISS_HEART;
-  islHeart.setAttribute('transform', 'translate(172 11)');
+  islHeart.setAttribute('transform', 'translate(172 2)');
   islBirds.append(islGirl, islHeart);
 }
 
@@ -615,18 +615,18 @@ function drawIslandDots(sessions) {
   const spacing = 14;
   const width = (sessions.length - 1) * spacing + 24;
   dots.append(svgEl('rect', {
-    class: 'isl-pager', x: 115 - width / 2, y: 32.8, width, height: 8.6, rx: 4.3,
+    class: 'isl-pager', x: 115 - width / 2, y: 24.8, width, height: 7.4, rx: 3.7,
   }));
   sessions.forEach((session, i) => {
     const x = 115 + (i - (sessions.length - 1) / 2) * spacing;
     const item = svgEl('g', { class: `isl-pager-item${i === islSessionIdx ? ' on' : ''}` });
     const tip = svgEl('title');
     tip.textContent = capFirst(AGENT_NAMES[session.agent] || session.agent || '未知');
-    item.append(svgEl('circle', { class: 'isl-pager-hit', cx: x, cy: 37.1, r: 5.8 }), tip);
+    item.append(svgEl('circle', { class: 'isl-pager-hit', cx: x, cy: 28.5, r: 5.4 }), tip);
     if (i === islSessionIdx) {
-      item.append(svgEl('rect', { class: 'isl-pager-dot', x: x - 4.5, y: 35.7, width: 9, height: 2.8, rx: 1.4 }));
+      item.append(svgEl('rect', { class: 'isl-pager-dot', x: x - 4.5, y: 27.1, width: 9, height: 2.8, rx: 1.4 }));
     } else {
-      item.append(svgEl('circle', { class: 'isl-pager-dot', cx: x, cy: 37.1, r: 1.7 }));
+      item.append(svgEl('circle', { class: 'isl-pager-dot', cx: x, cy: 28.5, r: 1.7 }));
     }
     item.addEventListener('mousedown', (event) => event.stopPropagation());
     item.addEventListener('click', (event) => {

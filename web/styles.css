@@ -507,8 +507,8 @@ body.snap-y::after { opacity: 1; }
   left: 50%;
   margin-left: -115px;
   width: 230px;
-  height: 44px;
-  border-radius: 16px;
+  height: 36px;
+  border-radius: 14px;
   background: rgba(4, 4, 8, 0.97);
   border: 1px solid transparent;
   box-shadow:
@@ -604,10 +604,11 @@ body.docked:not(.expanded) {
 }
 
 .isl-track {
-  stroke: rgba(255, 255, 255, 0.22);
-  stroke-width: 1.1;
-  stroke-dasharray: 2 5;
+  stroke: color-mix(in srgb, var(--c, #a18bff) 38%, rgba(255, 255, 255, 0.5));
+  stroke-width: 1.4;
+  stroke-dasharray: 3 4;
   stroke-linecap: round;
+  opacity: 0.9;
 }
 
 .isl-light {
