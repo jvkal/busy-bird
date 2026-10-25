@@ -528,9 +528,8 @@ async function islandBirdLoop() {
       continue;
     }
     await islFly(46, 183, 1100);
-    // tucked into the vendor chip: the request glows there while waiting.
-    // The monkey stays visible — it reaches for the banana.
-    bird.flier.style.opacity = bird.skin === 'monkey' ? '1' : '0';
+    // waiting on the vendor chip: the courier stays perched there, visible,
+    // while the request glows in the hole beside it.
     islPacket.style.setProperty('--c', accent);
     islPacket.setAttribute('transform', 'translate(181 20)');
     islPacket.style.opacity = '1';

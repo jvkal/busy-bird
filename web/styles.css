@@ -427,9 +427,25 @@ button.mini:hover { background: rgba(255, 255, 255, 0.14); }
   filter: drop-shadow(0 0 3px #ff6b6b);
 }
 
-/* Held: the courier has tucked itself into the burrow — the data it carried
-   glows at the hole mouth until the answer sends it home. */
-.flying-bird.held .flier { opacity: 0; }
+/* Held: the courier perches on the chip it waits for, wings folded, always
+   visible. It used to tuck itself away and leave only a glowing dot, which
+   read as "the bird disappeared". */
+.flying-bird.held .flier { opacity: 1; }
+
+.flying-bird.held .wing {
+  animation: none;
+  transform: scaleY(-0.45) skewX(10deg);
+}
+
+.flying-bird.held .flier { animation: heldBob 1.6s ease-in-out infinite; }
+
+@keyframes heldBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+
+/* A parked sedan keeps its wheels still while it waits. */
+.flying-bird.held .skin-car .c-spoke { animation: none; }
 
 .hole-packet {
   fill: var(--c, #a18bff);
