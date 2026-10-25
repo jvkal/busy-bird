@@ -723,6 +723,8 @@ ipcMain.on('bird:ready', () => {
   if (usageData) send('bird:usage', usageData);
 });
 ipcMain.on('bird:hit-areas', (_event, areas) => { hitAreas = normalizeHitAreas(areas); });
+ipcMain.on('bird:drag-start', startDrag);
+ipcMain.on('bird:drag-end', endDrag);
 ipcMain.on('bird:stats', async () => {
   if (statsCache && Date.now() - statsAt < 60000) {
     send('bird:stats', statsCache);

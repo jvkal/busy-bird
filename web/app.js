@@ -1147,12 +1147,38 @@ $('resetPlace').addEventListener('click', () => window.bird?.resetPlace());
 
 pill.addEventListener('click', () => window.bird?.periodNext());
 
+// A press on the top strip or the island may become a drag: move past a
+// small threshold or hold briefly, and the window follows the cursor.
+// Plain clicks still land on the pill and dots — the whole bar drags now,
+// not just the slivers between buttons.
+function grabPress(event) {
+  if (event.button !== 0) return;
+  const startX = event.screenX;
+  const startY = event.screenY;
+  let dragging = false;
+  const begin = () => {
+    if (dragging) return;
+    dragging = true;
+    window.clearTimeout(timer);
+    window.removeEventListener('mousemove', move);
+    window.bird?.dragStart();
+  };
+  const move = (e) => {
+    if (Math.abs(e.screenX - startX) + Math.abs(e.screenY - startY) > 4) begin();
+  };
+  const up = () => {
+    window.clearTimeout(timer);
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+    window.bird?.dragEnd();
+  };
+  const timer = window.setTimeout(begin, 160);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+
 const topbar = $('topbar');
-topbar.addEventListener('mousedown', (event) => {
-  if (event.target.closest('.pill') || event.target.closest('.gear') || event.target.closest('.mini-dot')) return;
-  event.preventDefault();
-  window.bird?.dragStart();
-});
+topbar.addEventListener('mousedown', grabPress);
 
 const statsCard = $('statsCard');
 function toggleStats(open) {
@@ -1231,12 +1257,8 @@ window.bird?.onStats((data) => {
   renderStats(data);
 });
 
-// Dragging the island itself undocks it from the screen top; the wheel and
+// Dragging the island undocks it from the screen top; the wheel and
 // double-click slide between the active sessions.
-island.addEventListener('mousedown', (event) => {
-  event.preventDefault();
-  window.bird?.dragStart();
-});
 island.addEventListener('wheel', (event) => {
   event.preventDefault();
   islandSlide(event.deltaY > 0 ? 1 : -1);
