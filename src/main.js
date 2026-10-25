@@ -265,6 +265,11 @@ let expandState = false;
 let hitAreas = { controls: [], dragTop: 0, dragBottom: 26 };
 let hoverTimer = null;
 let morphTimer = null;
+let expandDwell = 0;
+// The renderer tells us a press began: a grab is a drag, never an expand.
+// It self-expires in case a mouseup is ever lost to a focus change.
+let pressGrace = false;
+let pressGraceUntil = 0;
 
 function applyClickThrough(ignore) {
   if (!win || win.isDestroyed()) return;
@@ -292,13 +297,22 @@ function watchHover() {
     const point = screen.getCursorScreenPoint();
     const bounds = win.getBounds();
     // Docked as the Dynamic Island: the window itself is only as big as the
-    // pill. Hovering it grows the window into the full card; leaving folds
-    // the card away again — the two modes never share space.
+    // pill. Resting the cursor on it grows the window into the full card;
+    // leaving folds the card away again — the two modes never share space.
     if (settings.docked) {
-      const collapsed = bounds.height <= ISLAND_H + 4;
       const inside = point.x >= bounds.x && point.x <= bounds.x + bounds.width
         && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
-      const wantExpand = expandState ? inside : collapsed && inside;
+      // Expand on DWELL, not mere presence: a press that turns into a drag
+      // suppresses expanding, so grabbing the pill never trips a resize.
+      let wantExpand;
+      if (expandState) {
+        wantExpand = inside;
+        if (!inside) expandDwell = 0;
+      } else {
+        if (pressGrace && Date.now() > pressGraceUntil) pressGrace = false;
+        expandDwell = inside && !pressGrace ? expandDwell + 1 : 0;
+        wantExpand = expandDwell >= 2;
+      }
       setHoverInteractive(wantExpand, wantExpand ? 'control' : null);
       if (expandState !== wantExpand) {
         expandState = wantExpand;
@@ -317,9 +331,16 @@ function watchHover() {
 }
 
 // Grow the small island window into the full card and back. The top edge
-// stays put so the pill never jumps — the card unfolds below it.
+// stays put so the pill never jumps — the card unfolds below it. A morph is
+// instantaneous while a drag owns the pointer, or the drag timer and the
 function morphToCard(expand) {
-  if (!win || win.isDestroyed() || morphTimer) return;
+  if (!win || win.isDestroyed()) return;
+  // Re-entrant: a fold request mid-grow restarts from wherever the window
+  // is now, so the hover state and the window size never drift apart.
+  if (morphTimer) {
+    clearInterval(morphTimer);
+    morphTimer = null;
+  }
   const bounds = win.getBounds();
   const area = screen.getDisplayNearestPoint({
     x: bounds.x + Math.round(bounds.width / 2),
@@ -349,6 +370,23 @@ function morphToCard(expand) {
       morphTimer = null;
     }
   }, 24);
+}
+
+// Settle a running morph to the size it was headed for: a drag must start
+// from a stable window, not one mid-interpolation.
+function finishMorph() {
+  if (!win || win.isDestroyed() || !morphTimer) return;
+  clearInterval(morphTimer);
+  morphTimer = null;
+  const bounds = win.getBounds();
+  const area = screen.getDisplayNearestPoint({
+    x: bounds.x + Math.round(bounds.width / 2),
+    y: bounds.y + Math.round(bounds.height / 2),
+  }).workArea;
+  const target = expandState
+    ? { x: area.x + Math.round((area.width - settings.width) / 2), y: area.y, width: settings.width, height: settings.height }
+    : islandBounds(area);
+  win.setBounds(target, false);
 }
 
 function islandBounds(area) {
@@ -470,6 +508,9 @@ let dragState = null;
 
 function startDrag() {
   if (!win || win.isDestroyed() || dragState) return;
+  // A grab commits to a drag: settle any in-flight morph so the window size
+  // is stable while it follows the cursor — two timers must never tug it.
+  finishMorph();
   const point = screen.getCursorScreenPoint();
   const [x, y] = win.getPosition();
   win.setIgnoreMouseEvents(false);
@@ -522,9 +563,9 @@ function endDrag() {
   if (win && !win.isDestroyed()) {
     const area = screen.getDisplayNearestPoint(win.getBounds()).workArea;
     const bounds = win.getBounds();
-    const cardCenterX = bounds.x + Math.round(settings.width / 2);
+    const nowCenterX = bounds.x + Math.round(bounds.width / 2);
     const nearTopCenter = bounds.y <= area.y + 20
-      && Math.abs(cardCenterX - (area.x + Math.round(area.width / 2))) <= 60;
+      && Math.abs(nowCenterX - (area.x + Math.round(area.width / 2))) <= 60;
     if (nearTopCenter) {
       // Dropped on the top-centre edge: dock. The window itself becomes the
       // island — the two modes never share space.
@@ -784,6 +825,11 @@ ipcMain.on('bird:ready', () => {
   if (usageData) send('bird:usage', usageData);
 });
 ipcMain.on('bird:hit-areas', (_event, areas) => { hitAreas = normalizeHitAreas(areas); });
+ipcMain.on('bird:press', (_event, down) => {
+  pressGrace = Boolean(down);
+  pressGraceUntil = Date.now() + 800;
+  if (pressGrace) expandDwell = 0;
+});
 ipcMain.on('bird:drag-start', startDrag);
 ipcMain.on('bird:drag-end', endDrag);
 ipcMain.on('bird:stats', async () => {

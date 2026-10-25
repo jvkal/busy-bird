@@ -1156,6 +1156,9 @@ function grabPress(event) {
   const startX = event.screenX;
   const startY = event.screenY;
   let dragging = false;
+  // Tell the main process a press began: grabbing is a drag, never the
+  // dwell that expands the island — so a drag can't trip a resize.
+  window.bird?.press(true);
   const begin = () => {
     if (dragging) return;
     dragging = true;
@@ -1171,6 +1174,7 @@ function grabPress(event) {
     window.removeEventListener('mousemove', move);
     window.removeEventListener('mouseup', up);
     window.bird?.dragEnd();
+    window.bird?.press(false);
   };
   const timer = window.setTimeout(begin, 160);
   window.addEventListener('mousemove', move);
