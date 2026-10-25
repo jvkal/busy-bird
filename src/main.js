@@ -15,6 +15,8 @@ const WIDTH = 260;
 const HEIGHT = 160;
 const TOPBAR_H = 26;
 const MIN_WIDTH = 220;
+const ISLAND_W = 236;
+const ISLAND_H = 40;
 // The stage keeps its shape: height follows width, so the SVG canvas scales
 // instead of leaving bands.
 const RATIO = WIDTH / (HEIGHT - TOPBAR_H);
@@ -83,11 +85,9 @@ function loadSettings() {
   settings.width = Math.min(Math.max(Number(settings.width) || WIDTH, MIN_WIDTH), 4000);
   settings.height = heightForWidth(settings.width);
   if (settings.docked) {
-    // The island lives pinned to the top-center of the work area.
+    // The island lives as a small window pinned to the top-centre edge.
     const area = screen.getPrimaryDisplay().workArea;
-    settings.width = WIDTH;
-    settings.height = HEIGHT;
-    settings.left = area.x + Math.round((area.width - WIDTH) / 2);
+    settings.left = area.x + Math.round((area.width - ISLAND_W) / 2);
     settings.top = area.y;
   }
 }
@@ -264,6 +264,7 @@ let panelOpen = false;
 let expandState = false;
 let hitAreas = { controls: [], dragTop: 0, dragBottom: 26 };
 let hoverTimer = null;
+let morphTimer = null;
 
 function applyClickThrough(ignore) {
   if (!win || win.isDestroyed()) return;
@@ -290,17 +291,19 @@ function watchHover() {
     if (!win || win.isDestroyed() || !win.isVisible() || panelOpen || dragState) return;
     const point = screen.getCursorScreenPoint();
     const bounds = win.getBounds();
-    // Docked as the Dynamic Island: hovering the pill drops the card down,
-    // leaving the window folds it back up.
+    // Docked as the Dynamic Island: the window itself is only as big as the
+    // pill. Hovering it grows the window into the full card; leaving folds
+    // the card away again — the two modes never share space.
     if (settings.docked) {
-      const inWindow = point.x >= bounds.x && point.x <= bounds.x + bounds.width
+      const collapsed = bounds.height <= ISLAND_H + 4;
+      const inside = point.x >= bounds.x && point.x <= bounds.x + bounds.width
         && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
-      const onIsland = point.y <= bounds.y + 38 && inWindow;
-      const wantExpand = expandState ? inWindow : onIsland;
+      const wantExpand = expandState ? inside : collapsed && inside;
       setHoverInteractive(wantExpand, wantExpand ? 'control' : null);
       if (expandState !== wantExpand) {
         expandState = wantExpand;
         send('bird:expand', wantExpand);
+        morphToCard(wantExpand);
       }
       return;
     }
@@ -311,6 +314,50 @@ function watchHover() {
       && point.y >= bounds.y + hitAreas.dragTop && point.y <= bounds.y + hitAreas.dragBottom;
     setHoverInteractive(onControl || onTopBar, onControl ? 'control' : 'drag');
   }, 70);
+}
+
+// Grow the small island window into the full card and back. The top edge
+// stays put so the pill never jumps — the card unfolds below it.
+function morphToCard(expand) {
+  if (!win || win.isDestroyed() || morphTimer) return;
+  const bounds = win.getBounds();
+  const area = screen.getDisplayNearestPoint({
+    x: bounds.x + Math.round(bounds.width / 2),
+    y: bounds.y + Math.round(bounds.height / 2),
+  }).workArea;
+  const target = expand
+    ? { x: area.x + Math.round((area.width - settings.width) / 2), y: area.y, width: settings.width, height: settings.height }
+    : islandBounds(area);
+  const steps = 5;
+  let step = 0;
+  morphTimer = setInterval(() => {
+    if (!win || win.isDestroyed()) {
+      clearInterval(morphTimer);
+      morphTimer = null;
+      return;
+    }
+    step += 1;
+    const k = step >= steps ? 1 : step / steps;
+    win.setBounds({
+      x: Math.round(bounds.x + (target.x - bounds.x) * k),
+      y: target.y,
+      width: Math.round(bounds.width + (target.width - bounds.width) * k),
+      height: Math.round(bounds.height + (target.height - bounds.height) * k),
+    }, false);
+    if (step >= steps) {
+      clearInterval(morphTimer);
+      morphTimer = null;
+    }
+  }, 24);
+}
+
+function islandBounds(area) {
+  return {
+    x: area.x + Math.round((area.width - ISLAND_W) / 2),
+    y: area.y,
+    width: ISLAND_W,
+    height: ISLAND_H,
+  };
 }
 
 function normalizeHitAreas(raw) {
@@ -332,8 +379,17 @@ function normalizeHitAreas(raw) {
 }
 
 function createWindow() {
-  const width = settings.width;
-  const height = settings.height;
+  let width = settings.width;
+  let height = settings.height;
+  if (settings.docked) {
+    // Only the pill exists while the island is collapsed: a real small
+    // window, not a hidden full-size one.
+    width = ISLAND_W;
+    height = ISLAND_H;
+    const area = screen.getPrimaryDisplay().workArea;
+    settings.left = area.x + Math.round((area.width - width) / 2);
+    settings.top = area.y;
+  }
   const bounds = clampBounds(Number(settings.left), Number(settings.top), width, height);
   settings.left = bounds.x;
   settings.top = bounds.y;
@@ -461,29 +517,33 @@ function endDrag() {
   if (!dragState) return;
   clearInterval(dragState.timer);
   clearTimeout(dragState.max);
-  const wasSnapped = dragState.snapX || dragState.snapY;
   dragState = null;
   send('bird:snap', { x: false, y: false });
   if (win && !win.isDestroyed()) {
-    const [x, y] = win.getPosition();
-    // Drop the island onto the screen's top-center edge to dock it.
-    const area = screen.getPrimaryDisplay().workArea;
-    const centerX = area.x + Math.round((area.width - WIDTH) / 2);
-    if (y <= area.y + 26 && Math.abs(x - centerX) <= 24 && !settings.docked) {
-      settings.docked = true;
-      settings.left = centerX;
-      settings.top = area.y;
-      win.setBounds({ x: centerX, y: area.y, width: WIDTH, height: HEIGHT }, false);
-    } else if (y > area.y + 26 && settings.docked) {
-      settings.docked = false;
-    }
-    settings.left = x;
-    settings.top = y;
-    saveSettings();
-    if (expandState) {
+    const area = screen.getDisplayNearestPoint(win.getBounds()).workArea;
+    const bounds = win.getBounds();
+    const cardCenterX = bounds.x + Math.round(settings.width / 2);
+    const nearTopCenter = bounds.y <= area.y + 20
+      && Math.abs(cardCenterX - (area.x + Math.round(area.width / 2))) <= 60;
+    if (nearTopCenter) {
+      // Dropped on the top-centre edge: dock. The window itself becomes the
+      // island — the two modes never share space.
       expandState = false;
       send('bird:expand', false);
+      settings.docked = true;
+      win.setBounds(islandBounds(area), false);
+    } else if (settings.docked) {
+      // Dragged away from the edge: undock and grow back to the card.
+      expandState = false;
+      send('bird:expand', false);
+      settings.docked = false;
+      const b = clampBounds(bounds.x, bounds.y, settings.width, settings.height);
+      win.setBounds({ x: b.x, y: b.y, width: settings.width, height: settings.height }, false);
     }
+    const nb = win.getBounds();
+    settings.left = nb.x;
+    settings.top = nb.y;
+    saveSettings();
     win.setIgnoreMouseEvents(true, { forward: true });
     win.setFocusable(false);
     win.blur();
@@ -497,15 +557,19 @@ function setDocked(value) {
   settings.docked = Boolean(value);
   if (settings.docked) {
     const area = screen.getPrimaryDisplay().workArea;
-    settings.width = WIDTH;
-    settings.height = HEIGHT;
-    settings.left = area.x + Math.round((area.width - WIDTH) / 2);
-    settings.top = area.y;
+    expandState = false;
+    send('bird:expand', false);
+    win?.setBounds(islandBounds(area), false);
+  } else {
+    expandState = false;
+    const area = screen.getPrimaryDisplay().workArea;
+    const x = area.x + Math.round((area.width - settings.width) / 2);
+    const y = Math.max(area.y + 40, area.y + Math.round((area.height - settings.height) / 2));
+    settings.left = x;
+    settings.top = y;
+    win?.setBounds({ x, y, width: settings.width, height: settings.height }, false);
   }
   saveSettings();
-  if (win && !win.isDestroyed()) {
-    win.setBounds({ x: settings.left, y: settings.top, width: settings.width, height: settings.height }, false);
-  }
   send('bird:settings', publicSettings());
   refreshTrayMenu();
 }
@@ -515,13 +579,10 @@ function setDocked(value) {
 function setSize(width) {
   settings.width = Math.min(Math.max(Number(width) || WIDTH, MIN_WIDTH), 4000);
   settings.height = heightForWidth(settings.width);
-  if (settings.docked) {
-    const area = screen.getPrimaryDisplay().workArea;
-    settings.left = area.x + Math.round((area.width - settings.width) / 2);
-    settings.top = area.y;
-  }
   saveSettings();
-  if (win && !win.isDestroyed()) {
+  // The shape only changes while the card is open; the island has its own
+  // fixed size, so it grows into the new card on the next hover.
+  if (win && !win.isDestroyed() && !settings.docked) {
     win.setBounds({ x: settings.left, y: settings.top, width: settings.width, height: settings.height }, false);
   }
   send('bird:settings', publicSettings());
@@ -783,17 +844,24 @@ function resetWindowPlace() {
   const area = screen.getPrimaryDisplay().workArea;
   settings.width = WIDTH;
   settings.height = HEIGHT;
-  const bounds = clampBounds(
-    area.x + Math.round((area.width - WIDTH) / 2),
-    area.y + Math.round((area.height - HEIGHT) / 2),
-    WIDTH, HEIGHT,
-  );
-  settings.left = bounds.x;
-  settings.top = bounds.y;
-  saveSettings();
-  if (win && !win.isDestroyed()) {
-    win.setBounds({ x: bounds.x, y: bounds.y, width: WIDTH, height: HEIGHT }, false);
+  if (settings.docked) {
+    const b = islandBounds(area);
+    settings.left = b.x;
+    settings.top = b.y;
+    if (win && !win.isDestroyed()) win.setBounds(b, false);
+  } else {
+    const bounds = clampBounds(
+      area.x + Math.round((area.width - WIDTH) / 2),
+      area.y + Math.round((area.height - HEIGHT) / 2),
+      WIDTH, HEIGHT,
+    );
+    settings.left = bounds.x;
+    settings.top = bounds.y;
+    if (win && !win.isDestroyed()) {
+      win.setBounds({ x: bounds.x, y: bounds.y, width: WIDTH, height: HEIGHT }, false);
+    }
   }
+  saveSettings();
   send('bird:settings', publicSettings());
 }
 

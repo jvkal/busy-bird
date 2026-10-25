@@ -1259,6 +1259,7 @@ window.bird?.onStats((data) => {
 
 // Dragging the island undocks it from the screen top; the wheel and
 // double-click slide between the active sessions.
+island.addEventListener('mousedown', grabPress);
 island.addEventListener('wheel', (event) => {
   event.preventDefault();
   islandSlide(event.deltaY > 0 ? 1 : -1);
@@ -1289,6 +1290,7 @@ window.bird?.onSettings((settings) => {
 window.bird?.onExpand((expanded) => {
   document.body.classList.toggle('expanded', Boolean(expanded));
   refreshSurface();
+  reportHitAreas();
 });
 window.bird?.onSnap(({ x, y }) => {
   document.body.classList.toggle('snap-x', Boolean(x));
