@@ -528,17 +528,29 @@ async function islandBirdLoop() {
       continue;
     }
     await islFly(46, 183, 1100);
-    // waiting on the vendor chip: the courier stays perched there, visible,
-    // while the request glows in the hole beside it.
+    // the vendor beats its icon once: request received
+    flashClass(islRight, 'pulse-once', 600);
     islPacket.style.setProperty('--c', accent);
     islPacket.setAttribute('transform', 'translate(181 20)');
     islPacket.style.opacity = '1';
-    // the vendor beats its icon once: request received
-    flashClass(islRight, 'pulse-once', 600);
-    await islWait(() => {
+    // A courier perched still for minutes reads as stuck or broken. While
+    // the answer is pending it patrols the wire — vendor to agent and back —
+    // and settles at the vendor before riding home with the golden reply.
+    let islReady = false;
+    const islWatch = islWait(() => {
       const fresh = state.routes.get(id);
       return !fresh || fresh.done;
-    });
+    }).then(() => { islReady = true; });
+    let atVendor = true;
+    while (!islReady) {
+      await islFly(atVendor ? 183 : 50, atVendor ? 50 : 183, 1200);
+      atVendor = !atVendor;
+      if (islReady && !atVendor) {
+        await islFly(50, 183, 900);
+        atVendor = true;
+      }
+    }
+    await islWatch;
     // ride home with the golden answer
     islPacket.style.opacity = '0';
     bird.g.classList.add('back');
@@ -815,7 +827,20 @@ const LEGS_TO_HUB = [{ path: 'in' }];
 const LEGS_TO_ACCOUNT = [{ path: 'through' }, { path: 'out' }];
 const LEGS_RETURN = [{ path: 'out', reverse: true }, { path: 'through', reverse: true }, { path: 'in', reverse: true }];
 const LEGS_BACK_TO_HUB = [{ path: 'out', reverse: true }];
+const LEGS_HUB_TO_ACCOUNT = [{ path: 'out' }];
 const LEGS_HUB_HOME = [{ path: 'in', reverse: true }];
+
+// While an answer is pending, a parked courier reads as stuck. It shuttles
+// out along the wire and back — each round trip landing on the very point
+// the next leg starts from — until the reply is ready to ride home.
+async function patrol(flight, ready, outLegs, backLegs) {
+  setPose(flight, 'fly');
+  while (!flight.cancelled && !ready(flight.route)) {
+    if (!await travel(flight, outLegs)) return false;
+    if (!await travel(flight, backLegs)) return false;
+  }
+  return !flight.cancelled;
+}
 
 // The crossing of the hub happens halfway through the through-leg. Read
 // lazily, AFTER the legs are built: the previous spec's legs are stale here.
@@ -831,6 +856,7 @@ const TRAVEL_MS = new Map([
   [LEGS_TO_ACCOUNT, 920],
   [LEGS_RETURN, 1350],
   [LEGS_BACK_TO_HUB, 620],
+  [LEGS_HUB_TO_ACCOUNT, 780],
 ]);
 
 function travel(flight, spec) {
@@ -846,6 +872,22 @@ function waitFor(flight, predicate) {
       }
     }, 180);
   });
+}
+
+// A courier parked motionless for a slow provider reads as stuck, so it
+// shuttles out and back until the answer is ready. Every round trip ends at
+// the park point, which is where the next leg of the route expects it.
+async function shuttle(flight, predicate, outLegs, backLegs) {
+  setPose(flight, 'fly');
+  while (!flight.cancelled && !predicate(flight.route)) {
+    if (!await travel(flight, outLegs)) return false;
+    if (predicate(flight.route)) {
+      if (!await travel(flight, backLegs)) return false;
+      return true;
+    }
+    if (!await travel(flight, backLegs)) return false;
+  }
+  return !flight.cancelled;
 }
 
 function fadeOut(flight) {
@@ -906,23 +948,23 @@ async function runFlight(flight) {
   try {
     setPose(flight, 'fly');
     if (!await travel(flight, LEGS_TO_HUB)) return;
-    holdAt(flight, 'hub');
-    await waitFor(flight, route => (route.tries || []).length > 0 || route.done);
+    if (!await patrol(flight, route => (route.tries || []).length > 0 || route.done,
+      LEGS_HUB_TO_ACCOUNT, LEGS_BACK_TO_HUB)) return;
     let index = 0;
     while (!flight.cancelled) {
       const route = flight.route;
       if (route.done && !(route.tries || []).length) { fadeOut(flight); return; }
       if (!(route.tries || [])[index]) {
         holdAt(flight, 'hub');
-        await waitFor(flight, r => (r.tries || [])[index] || r.done);
-        if (flight.cancelled) return;
+        if (!await patrol(flight, r => Boolean((r.tries || [])[index]) || r.done,
+          LEGS_HUB_TO_ACCOUNT, LEGS_BACK_TO_HUB)) return;
         if (flight.route.done && !(flight.route.tries || [])[index]) { fadeOut(flight); return; }
       }
       // Same agent and account: one wire, one burrow — the answer simply
       // comes back the way the request went in.
       if (flight.merged) {
-        await waitFor(flight, r => Boolean((r.tries || [])[index]?.done));
-        if (flight.cancelled) return;
+        if (!await patrol(flight, r => Boolean((r.tries || [])[index]?.done),
+          LEGS_HUB_TO_ACCOUNT, LEGS_BACK_TO_HUB)) return;
         const mergedAttempt = flight.route.tries[index];
         if (succeeded(mergedAttempt)) {
           await waitFor(flight, r => r.done);
@@ -947,9 +989,8 @@ async function runFlight(flight) {
       }
       setPose(flight, 'fly');
       if (!await travel(flight, LEGS_TO_ACCOUNT)) return;
-      holdAt(flight, 'account');
-      await waitFor(flight, r => Boolean((r.tries || [])[index]?.done));
-      if (flight.cancelled) return;
+      if (!await patrol(flight, r => Boolean((r.tries || [])[index]?.done),
+        LEGS_BACK_TO_HUB, LEGS_HUB_TO_ACCOUNT)) return;
       const attempt = flight.route.tries[index];
       if (succeeded(attempt)) {
         await waitFor(flight, r => r.done);
