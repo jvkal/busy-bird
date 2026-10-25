@@ -565,10 +565,8 @@ function updateIsland() {
     islLights.append(comet);
     if (i >= 2) break;
   }
-  const text = islText;
-  text.textContent = active.length
-    ? `${active.length} 个请求`
-    : `${fmtTokens(usageTotal(state.usage))} tok`;
+  // The collapsed island is quiet: tokens only, no request-count chatter.
+  islText.textContent = `${fmtTokens(usageTotal(state.usage))} tok`;
   drawIslandDots(sessions);
 }
 
