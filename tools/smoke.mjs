@@ -73,17 +73,24 @@ async function main() {
     return dots.length === 0 || dots.every(d => d.tagName.toLowerCase() === 'circle');
   })()`));
 
-  // 5. stats card opens and fills from the usage API
+  // 5. stats card: opens when its topbar is visible; a collapsed island
+  //    must refuse it — folding used to leave the card as a clipped sliver
   await evaluate('document.getElementById("statDot").click()');
-  await sleep(1500);
-  check('stats card opens', await evaluate('document.getElementById("statsCard").classList.contains("open")'));
-  const calls = await evaluate('document.getElementById("stCalls").textContent');
-  check('stats card has call count', /[\d]/.test(String(calls)), calls);
-  const bars = await evaluate('document.querySelectorAll("#chart .chart-bar").length');
-  check('24h chart has 24 bars', bars === 24, String(bars));
-  await evaluate('document.getElementById("statsClose").click()');
-  await sleep(150);
-  check('stats card closes', await evaluate('!document.getElementById("statsCard").classList.contains("open")'));
+  await sleep(1200);
+  const collapsed = await evaluate('document.body.classList.contains("docked") && !document.body.classList.contains("expanded")');
+  if (collapsed) {
+    check('collapsed island refuses stats card',
+      await evaluate('!document.getElementById("statsCard").classList.contains("open")'));
+  } else {
+    check('stats card opens', await evaluate('document.getElementById("statsCard").classList.contains("open")'));
+    const calls = await evaluate('document.getElementById("stCalls").textContent');
+    check('stats card has call count', /[\d]/.test(String(calls)), calls);
+    const bars = await evaluate('document.querySelectorAll("#chart .chart-bar").length');
+    check('24h chart has 24 bars', bars === 24, String(bars));
+    await evaluate('document.getElementById("statsClose").click()');
+    await sleep(150);
+    check('stats card closes', await evaluate('!document.getElementById("statsCard").classList.contains("open")'));
+  }
 
   // 6. docked mode (if active): island visible with brand icons
   const docked = await evaluate('document.body.classList.contains("docked")');
