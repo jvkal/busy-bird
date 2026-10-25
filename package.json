@@ -7,7 +7,12 @@
   "exports": {
     "./server": "./plugin/server.mjs"
   },
-  "author": "chaofanat",
+  "author": "jvkal",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jvkal/busy-bird.git"
+  },
+  "homepage": "https://github.com/jvkal/busy-bird#readme",
   "license": "MIT",
   "private": true,
   "keywords": [

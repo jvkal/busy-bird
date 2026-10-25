@@ -1256,6 +1256,71 @@ function grabPress(event) {
 const topbar = $('topbar');
 topbar.addEventListener('mousedown', grabPress);
 
+// ── resize from the corners and the two sides ──────────────────────────────
+// The window is frameless, so there is no native border to grab: the outermost
+// band of the card drives the resize itself. Only the horizontal axis matters
+// — the stage keeps its shape, and the main process derives the height.
+const RESIZE_EDGE = 10;
+const RESIZE_CURSORS = {
+  nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize',
+  w: 'ew-resize', e: 'ew-resize',
+};
+
+let resizeDir = null;
+let resizing = false;
+
+function resizeDirAt(event) {
+  if (state.settings?.docked) return null;
+  // A button that happens to sit in the corner (the gear, the token pill)
+  // keeps its own job: the grip is the bare edge, not the control on it.
+  if (event.target instanceof Element && event.target.closest('.hot')) return null;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const x = event.clientX;
+  const y = event.clientY;
+  const left = x <= RESIZE_EDGE;
+  const right = x >= w - RESIZE_EDGE;
+  const top = y <= RESIZE_EDGE;
+  const bottom = y >= h - RESIZE_EDGE;
+  if (top && left) return 'nw';
+  if (top && right) return 'ne';
+  if (bottom && left) return 'sw';
+  if (bottom && right) return 'se';
+  if (left) return 'w';
+  if (right) return 'e';
+  return null;
+}
+
+window.addEventListener('mousemove', (event) => {
+  const dir = resizeDirAt(event);
+  if (dir === resizeDir) return;
+  resizeDir = dir;
+  document.body.style.cursor = dir ? RESIZE_CURSORS[dir] : '';
+});
+
+window.addEventListener('mouseout', () => {
+  resizeDir = null;
+  document.body.style.cursor = '';
+});
+
+// Capture phase: a corner grab must win over the top strip's drag, and it must
+// not also count as a click on whatever sits underneath.
+document.addEventListener('mousedown', (event) => {
+  if (event.button !== 0 || resizing) return;
+  const dir = resizeDirAt(event);
+  if (!dir) return;
+  event.preventDefault();
+  event.stopPropagation();
+  resizing = true;
+  window.bird?.resizeStart(dir);
+}, true);
+
+window.addEventListener('mouseup', () => {
+  if (!resizing) return;
+  resizing = false;
+  window.bird?.resizeEnd();
+});
+
 const statsCard = $('statsCard');
 function toggleStats(open) {
   statsCard.classList.toggle('open', open);

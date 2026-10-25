@@ -33,7 +33,7 @@
 ### 作为 magpie 插件（启动器）
 
 ```bash
-magpie plugin add github:chaofanat/busy-bird
+magpie plugin add github:jvkal/busy-bird
 ```
 
 插件是启动器：magpie 第一次用到它会自动拉起桌面挂件。挂件本体需要在本地能找到，查找顺序：
@@ -74,7 +74,9 @@ npx electron . --shot=docs\screenshots\idle.png --demo --idle   # 只看栖息�
 - **透明度**：托盘菜单 →「不透明度」，20% – 100% 六档，只调背景，文字保持清晰。
 - **token 胶囊**：单击切换时间窗；悬停显示输入 / 输出 / 缓存明细。
 - **托盘菜单**：显示 / 隐藏、总在最前、时间窗、退出。
-- **位置记忆**：位置写进 `%APPDATA%\Busy Bird\settings.json`，重启保持。
+- **边角自由拉伸**：抓住卡片任意一个角或左右两边拖动，整张卡片等比放大缩小（宽 150 – 1200），画面按宽度整体缩放，不会把布局挤变形。托盘菜单另有 迷你／小／中／大 四档。
+- **单实例**：无论是 `启动挂件.bat`、托盘、还是 magpie 插件拉起，同一时间只会有一只鸟，重复启动会直接并入已运行的那一只。
+- **位置记忆**：位置和尺寸写进 `%APPDATA%\Busy Bird\settings.json`，重启保持。
 
 ## 它是怎么工作的
 

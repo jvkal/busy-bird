@@ -14,7 +14,7 @@ const path = require('path');
 const WIDTH = 260;
 const HEIGHT = 160;
 const TOPBAR_H = 26;
-const MIN_WIDTH = 220;
+const MIN_WIDTH = 150;
 const ISLAND_W = 236;
 const ISLAND_H = 40;
 // The stage keeps its shape: height follows width, so the SVG canvas scales
@@ -29,6 +29,12 @@ const IS_DEMO = process.argv.includes('--demo') || Boolean(IS_SHOT);
 // A separate data directory lets a test instance run beside the real one.
 if (process.env.BUSY_BIRD_DATA) {
   app.setPath('userData', process.env.BUSY_BIRD_DATA);
+} else {
+  // One data directory for every launch path — the checkout, 启动挂件.bat, the
+  // magpie plugin and a packaged build. The single-instance lock lives in that
+  // directory, so a path that differs by launch route is exactly how a second
+  // bird ends up sitting in the tray next to the first one.
+  app.setPath('userData', path.join(app.getPath('appData'), 'Busy Bird'));
 }
 
 let win = null;
@@ -73,8 +79,11 @@ function log(message) {
 }
 
 function loadSettings() {
-  settingsPath = path.join(app.getPath('appData'), 'Busy Bird', 'settings.json');
-  logPath = path.join(app.getPath('appData'), 'Busy Bird', 'busy-bird.log');
+  // userData is the support directory for a normal run (see the top of this
+  // file) and the throwaway directory for a test instance, so a --demo profile
+  // never reads or writes the real settings.
+  settingsPath = path.join(app.getPath('userData'), 'settings.json');
+  logPath = path.join(app.getPath('userData'), 'busy-bird.log');
   let stored = {};
   try {
     stored = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
@@ -297,7 +306,7 @@ function setHoverInteractive(value, kind = null) {
 function watchHover() {
   clearInterval(hoverTimer);
   hoverTimer = setInterval(() => {
-    if (!win || win.isDestroyed() || !win.isVisible() || panelOpen || dragState) return;
+    if (!win || win.isDestroyed() || !win.isVisible() || panelOpen || dragState || resizeState) return;
     const point = screen.getCursorScreenPoint();
     const bounds = win.getBounds();
     // Docked as the Dynamic Island: the window itself is only as big as the
@@ -335,7 +344,13 @@ function watchHover() {
     const onControl = hitAreas.controls.some(contains);
     const onTopBar = point.x >= bounds.x && point.x <= bounds.x + bounds.width
       && point.y >= bounds.y + hitAreas.dragTop && point.y <= bounds.y + hitAreas.dragBottom;
-    setHoverInteractive(onControl || onTopBar, onControl ? 'control' : 'drag');
+    // The outermost band is the resize grip. The card must take the pointer
+    // there too, or the corners stay click-through and the drag never starts.
+    const onEdge = point.x >= bounds.x && point.x <= bounds.x + bounds.width
+      && point.y >= bounds.y && point.y <= bounds.y + bounds.height
+      && (point.x - bounds.x <= RESIZE_BAND || bounds.x + bounds.width - point.x <= RESIZE_BAND
+        || point.y - bounds.y <= RESIZE_BAND || bounds.y + bounds.height - point.y <= RESIZE_BAND);
+    setHoverInteractive(onControl || onTopBar || onEdge, onControl ? 'control' : 'drag');
   }, 70);
 }
 
@@ -409,9 +424,13 @@ function islandBounds(area) {
 
 function normalizeHitAreas(raw) {
   const source = raw && typeof raw === 'object' ? raw : {};
+  // The page is scaled to the window, so its rectangles are in page pixels:
+  // the cursor arrives in window pixels and every rect has to be converted.
+  const zoom = win && !win.isDestroyed() ? win.webContents.getZoomFactor() || 1 : 1;
+  const scale = (value) => value * zoom;
   const controls = (Array.isArray(source.controls) ? source.controls : []).flatMap((rect) => {
     if (!rect || typeof rect !== 'object') return [];
-    const [x, y, width, height] = ['x', 'y', 'width', 'height'].map((key) => Number(rect[key]));
+    const [x, y, width, height] = ['x', 'y', 'width', 'height'].map((key) => scale(Number(rect[key])));
     return [x, y, width, height].every(Number.isFinite) && width > 0 && height > 0
       ? [{ x, y, width, height }]
       : [];
@@ -420,8 +439,8 @@ function normalizeHitAreas(raw) {
   const bottom = Number(source.dragBottom);
   return {
     controls,
-    dragTop: Number.isFinite(top) ? top : 0,
-    dragBottom: Number.isFinite(bottom) && bottom > top ? bottom : 26,
+    dragTop: Number.isFinite(top) ? scale(top) : 0,
+    dragBottom: Number.isFinite(bottom) && bottom > top ? scale(bottom) : scale(26),
   };
 }
 
@@ -501,7 +520,10 @@ function createWindow() {
   });
   win.loadFile(path.join(__dirname, '..', 'web', 'index.html'));
 
-  win.once('ready-to-show', () => win.showInactive());
+  win.once('ready-to-show', () => {
+    applyZoom();
+    showWidget();
+  });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
   win.on('close', (event) => {
@@ -648,6 +670,7 @@ function setDocked(value) {
     settings.top = y;
     win?.setBounds({ x, y, width: settings.width, height: settings.height }, false);
   }
+  applyZoom();
   saveSettings();
   send('bird:settings', publicSettings());
   refreshTrayMenu();
@@ -663,9 +686,100 @@ function setSize(width) {
   // fixed size, so it grows into the new card on the next hover.
   if (win && !win.isDestroyed() && !settings.docked) {
     win.setBounds({ x: settings.left, y: settings.top, width: settings.width, height: settings.height }, false);
+    applyZoom();
   }
   send('bird:settings', publicSettings());
   refreshTrayMenu();
+}
+
+// The card is drawn for 260px and scaled to whatever the window is: shrinking
+// it has to shrink the whole picture (chips, wire, text), not squeeze a fixed
+// layout into a narrower frame.
+function applyZoom() {
+  if (!win || win.isDestroyed()) return;
+  const factor = settings.docked ? 1 : Math.max(0.5, Math.min(4, Number(settings.width) / WIDTH));
+  if (Math.abs(win.webContents.getZoomFactor() - factor) > 0.001) {
+    win.webContents.setZoomFactor(factor);
+  }
+}
+
+// ── resize from the renderer ────────────────────────────────────────────────
+// The card is a frameless, transparent window, so Windows gives it no native
+// resize border: the corners and sides are dragged by hand. Width drives the
+// height (the stage keeps its shape), and the pointer is polled here because
+// it may leave the window mid-gesture.
+const RESIZE_BAND = 10;
+const MAX_WIDTH = 1200;
+const RESIZE_DIRS = ['nw', 'ne', 'sw', 'se', 'w', 'e'];
+
+let resizeState = null;
+
+function startResize(dir) {
+  if (!win || win.isDestroyed() || resizeState || settings.docked) return;
+  if (!RESIZE_DIRS.includes(dir)) return;
+  const point = screen.getCursorScreenPoint();
+  win.setIgnoreMouseEvents(false);
+  win.setFocusable(true);
+  const state = {
+    dir,
+    pointerX: point.x,
+    pointerY: point.y,
+    box: win.getBounds(),
+    timer: null,
+    max: null,
+  };
+  state.timer = setInterval(() => {
+    if (!win || win.isDestroyed()) {
+      endResize();
+      return;
+    }
+    applyResize(state, screen.getCursorScreenPoint());
+  }, 16);
+  // A lost mouseup must not keep the card chasing the cursor forever.
+  state.max = setTimeout(endResize, 15000);
+  resizeState = state;
+}
+
+function applyResize(state, point) {
+  const { dir, box } = state;
+  const area = screen.getDisplayNearestPoint(point).workArea;
+  const maxWidth = Math.min(MAX_WIDTH, area.width);
+  const delta = dir.includes('e') ? point.x - state.pointerX
+    : dir.includes('w') ? state.pointerX - point.x
+      : 0;
+  const width = Math.round(Math.min(Math.max(box.width + delta, MIN_WIDTH), maxWidth));
+  const height = heightForWidth(width);
+  const x = Math.round(dir.includes('w') ? box.x + box.width - width : box.x);
+  const y = Math.round(dir.includes('n') ? box.y + box.height - height : box.y);
+  win.setBounds({ x, y, width, height }, false);
+  settings.width = width;
+  applyZoom();
+  // Once clamped at the minimum the edge stops following the pointer, so a
+  // cursor that has clearly let go of the window ends the gesture instead of
+  // resizing alone until the safety timer fires.
+  const b = win.getBounds();
+  if (point.x < b.x - 30 || point.x > b.x + b.width + 30
+    || point.y < b.y - 30 || point.y > b.y + b.height + 30) {
+    endResize();
+  }
+}
+
+function endResize() {
+  if (!resizeState) return;
+  clearInterval(resizeState.timer);
+  clearTimeout(resizeState.max);
+  resizeState = null;
+  if (!win || win.isDestroyed()) return;
+  const b = win.getBounds();
+  settings.width = b.width;
+  settings.height = heightForWidth(b.width);
+  settings.left = b.x;
+  settings.top = b.y;
+  saveSettings();
+  send('bird:settings', publicSettings());
+  refreshTrayMenu();
+  win.setIgnoreMouseEvents(true, { forward: true });
+  win.setFocusable(false);
 }
 
 // ── tray ────────────────────────────────────────────────────────────────────
@@ -684,7 +798,7 @@ const PERIOD_LABELS = { today: '今日', '7d': '近 7 天', '30d': '近 30 天',
 function refreshTrayMenu() {
   if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: win.isVisible() ? '隐藏挂件' : '显示挂件', click: () => (win.isVisible() ? win.hide() : win.showInactive()) },
+    { label: win.isVisible() ? '隐藏挂件' : '显示挂件', click: () => (win.isVisible() ? hideWidget() : showWidget()) },
     { type: 'separator' },
     { label: '总在最前', type: 'checkbox', checked: Boolean(settings.topmost), click: (item) => {
       settings.topmost = item.checked;
@@ -712,7 +826,7 @@ function refreshTrayMenu() {
         send('bird:settings', publicSettings());
       },
     })) },
-    { label: '尺寸', submenu: [[220, '小'], [260, '中'], [320, '大']].map(([width, label]) => ({
+    { label: '尺寸', submenu: [[150, '迷你'], [220, '小'], [260, '中'], [320, '大']].map(([width, label]) => ({
       label: `${label}（宽 ${width}）`,
       type: 'radio',
       checked: Number(settings.width) === width,
@@ -856,6 +970,20 @@ function send(channel, data) {
   if (win && !win.isDestroyed()) win.webContents.send(channel, data);
 }
 
+// Windows hands a re-shown frameless window a fresh taskbar button unless the
+// skip is re-asserted: the card belongs in the tray, never next to it.
+function showWidget() {
+  if (!win || win.isDestroyed()) return;
+  win.showInactive();
+  win.setSkipTaskbar(true);
+}
+
+function hideWidget() {
+  if (!win || win.isDestroyed()) return;
+  win.hide();
+  win.setSkipTaskbar(true);
+}
+
 ipcMain.on('bird:ready', () => {
   send('bird:settings', publicSettings());
   if (trace) send('bird:trace', trace);
@@ -870,6 +998,8 @@ ipcMain.on('bird:press', (_event, down) => {
 });
 ipcMain.on('bird:drag-start', startDrag);
 ipcMain.on('bird:drag-end', endDrag);
+ipcMain.on('bird:resize-start', (_event, dir) => startResize(dir));
+ipcMain.on('bird:resize-end', endResize);
 ipcMain.on('bird:stats', async () => {
   if (statsCache && Date.now() - statsAt < 60000) {
     send('bird:stats', statsCache);
@@ -964,8 +1094,11 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
+  // One identity for the tray icon and the taskbar, whatever launched us.
+  if (process.platform === 'win32') app.setAppUserModelId('com.busybird.widget');
+
   app.on('second-instance', () => {
-    if (win && !win.isDestroyed()) win.showInactive();
+    if (win && !win.isDestroyed()) showWidget();
   });
 
   app.whenReady().then(() => {
@@ -977,7 +1110,7 @@ if (!gotLock) {
     tray = new Tray(trayIcon());
     tray.setToolTip('Busy Bird');
     refreshTrayMenu();
-    tray.on('click', () => (win.isVisible() ? win.hide() : win.showInactive()));
+    tray.on('click', () => (win.isVisible() ? hideWidget() : showWidget()));
 
     if (IS_DEMO) {
       startDemo();

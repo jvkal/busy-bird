@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('bird', {
   hitAreas: (areas) => ipcRenderer.send('bird:hit-areas', areas),
   dragStart: () => ipcRenderer.send('bird:drag-start'),
   dragEnd: () => ipcRenderer.send('bird:drag-end'),
+  resizeStart: (dir) => ipcRenderer.send('bird:resize-start', dir),
+  resizeEnd: () => ipcRenderer.send('bird:resize-end'),
   press: (down) => ipcRenderer.send('bird:press', down),
   panel: (open) => ipcRenderer.send('bird:panel', open),
   saveSettings: (patch) => ipcRenderer.send('bird:save-settings', patch),
