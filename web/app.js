@@ -610,13 +610,9 @@ function drawIslandDots(sessions) {
   if (!dots) return;
   dots.innerHTML = '';
   if (sessions.length <= 1) return;
-  // A pager strip: the viewed session is a glowing dash, the rest are dots,
-  // all sitting in a faint capsule and each with a generous hit target.
+  // A pager strip of plain dots on the pill itself — no grey plate. The
+  // viewed session glows; the rest wait as dim dots.
   const spacing = 14;
-  const width = (sessions.length - 1) * spacing + 24;
-  dots.append(svgEl('rect', {
-    class: 'isl-pager', x: 115 - width / 2, y: 24.8, width, height: 7.4, rx: 3.7,
-  }));
   sessions.forEach((session, i) => {
     const x = 115 + (i - (sessions.length - 1) / 2) * spacing;
     const item = svgEl('g', { class: `isl-pager-item${i === islSessionIdx ? ' on' : ''}` });

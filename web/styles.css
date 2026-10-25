@@ -547,10 +547,16 @@ body.docked:not(.expanded) {
   box-shadow: none;
 }
 
+/* No grey plate behind the brand marks: the icons sit straight on the pill,
+   and only an in-flight session tints them with its own colour. */
 .isl-end circle.isl-chip {
-  fill: rgba(255, 255, 255, 0.07);
-  stroke: rgba(255, 255, 255, 0.12);
-  stroke-width: 0.6;
+  fill: transparent;
+  stroke: none;
+  transition: fill 0.3s ease;
+}
+
+#island.flow .isl-end circle.isl-chip {
+  fill: color-mix(in srgb, var(--c, #a18bff) 16%, transparent);
 }
 
 .isl-end .isl-fallback {
