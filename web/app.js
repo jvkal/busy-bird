@@ -366,7 +366,6 @@ function render() {
 const islLights = $('islLights');
 const islLeft = $('islLeft');
 const islRight = $('islRight');
-const islText = $('islText');
 const islBirds = $('islBirds');
 const islPacket = $('islPacket');
 let islEndKeys = { left: null, right: null };
@@ -565,10 +564,11 @@ function updateIsland() {
     islLights.append(comet);
     if (i >= 2) break;
   }
-  // The collapsed island is quiet: tokens only, no request-count chatter.
-  islText.textContent = `${fmtTokens(usageTotal(state.usage))} tok`;
+  // The collapsed island stays purely graphical: no numbers, no chatter —
+  // usage lives in the expanded stats card.
   drawIslandDots(sessions);
 }
+
 
 let islGirl = null;
 let islHeart = null;
