@@ -1157,6 +1157,7 @@ topbar.addEventListener('mousedown', (event) => {
 const statsCard = $('statsCard');
 function toggleStats(open) {
   statsCard.classList.toggle('open', open);
+  statDot.classList.toggle('on', open);
   if (open) {
     window.bird?.stats();
     refreshSurface();

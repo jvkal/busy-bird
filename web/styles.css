@@ -64,17 +64,22 @@ body {
 .pill.stale { opacity: 0.62; }
 
 .mini-dot {
+  display: grid;
+  place-items: center;
   border: none;
   background: transparent;
-  font-size: 11px;
-  line-height: 1;
-  padding: 2px 3px;
+  padding: 3px 4px;
   border-radius: 6px;
   cursor: pointer;
   margin-right: 2px;
+  color: #a9a9bc;
 }
 
-.mini-dot:hover { background: rgba(255, 255, 255, 0.12); }
+.mini-dot svg rect { fill: currentColor; }
+
+.mini-dot:hover { color: #eef; background: rgba(255, 255, 255, 0.10); }
+
+.mini-dot.on { color: var(--theme, #a18bff); }
 
 .gear {
   margin-right: 8px;

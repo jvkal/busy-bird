@@ -10,7 +10,13 @@
   <header class="topbar" id="topbar">
     <span class="dot" id="dot" title="正在连接"></span>
     <button class="pill hot" id="pill" title="单击切换时间窗">— tok</button>
-    <button class="mini-dot hot" id="statDot" title="用量统计">📊</button>
+    <button class="mini-dot hot" id="statDot" title="用量统计" aria-label="用量统计">
+      <svg viewBox="0 0 13 13" width="13" height="13" aria-hidden="true">
+        <rect x="1.2" y="6.6" width="2.6" height="5.2" rx="1.3"/>
+        <rect x="5.2" y="1.2" width="2.6" height="10.6" rx="1.3"/>
+        <rect x="9.2" y="4.4" width="2.6" height="7.4" rx="1.3"/>
+      </svg>
+    </button>
     <button class="gear hot" id="gear" title="设置（右键卡片也可换装）">⚙</button>
   </header>
 
