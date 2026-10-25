@@ -621,6 +621,9 @@ body.docked:not(.expanded) {
 }
 
 .isl-light {
+  /* fill inherits to the comet head/tail circles — without it the default
+     black fill shows as a dark ball rolling along the channel. */
+  fill: var(--c, #a18bff);
   filter: drop-shadow(0 0 3px var(--c, #a18bff));
   animation: islMove 2.4s ease-in-out infinite;
 }
