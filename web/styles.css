@@ -713,9 +713,11 @@ body.docked:not(.expanded) {
 
 .skin-car .c-body { fill: var(--agent, #a18bff); }
 
-.skin-car .c-cabin { fill: rgba(255, 255, 255, 0.35); }
+.skin-car .c-cabin { fill: rgba(255, 255, 255, 0.4); }
 
 .skin-car .c-light { fill: #ffe9a8; }
+
+.skin-car .c-taillight { fill: #ff5b5b; }
 
 .skin-car .c-tire {
   fill: #14141c;
