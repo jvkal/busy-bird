@@ -25,7 +25,8 @@
     "node": ">=20"
   },
   "magpie": {
-    "hooks": "./plugin/launch.hooks.mjs"
+    "hooks": "./plugin/launch.hooks.mjs",
+    "icon": "https://raw.githubusercontent.com/jvkal/busy-bird/main/assets/icon.png"
   },
   "scripts": {
     "start": "electron .",
