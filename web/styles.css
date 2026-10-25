@@ -539,6 +539,9 @@ body.docked.expanded #island { display: none; }
 body.docked:not(.expanded) #sky,
 body.docked:not(.expanded) .topbar { display: none; }
 
+/* Folding the island must also fold its overlays, no matter their state. */
+body.docked:not(.expanded) .panel { display: none !important; }
+
 body.docked:not(.expanded) {
   border-color: transparent;
   box-shadow: none;

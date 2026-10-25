@@ -1038,6 +1038,9 @@ function refreshSurface() {
     && !document.body.classList.contains('expanded');
   if (dockedIdle) {
     document.body.style.background = 'transparent';
+    // A folded island has no overlays: an open stats card would otherwise
+    // survive the fold as a clipped sliver.
+    if (statsCard.classList.contains('open')) toggleStats(false);
     return;
   }
   const alpha = state.opacity ?? 0.34;
@@ -1295,6 +1298,12 @@ window.bird?.onExpand((expanded) => {
   document.body.classList.toggle('expanded', Boolean(expanded));
   refreshSurface();
   reportHitAreas();
+  // Folding the island folds everything it was showing: an open stats card
+  // would otherwise be clipped into a sliver and never go away.
+  if (!expanded) {
+    if (statsCard.classList.contains('open')) toggleStats(false);
+    if (panel.classList.contains('open')) togglePanel(false);
+  }
 });
 window.bird?.onSnap(({ x, y }) => {
   document.body.classList.toggle('snap-x', Boolean(x));
