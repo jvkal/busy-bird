@@ -8,18 +8,31 @@
     "./server": "./plugin/server.mjs"
   },
   "author": "jvkal",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jvkal/busy-bird.git"
   },
   "homepage": "https://github.com/jvkal/busy-bird#readme",
-  "license": "MIT",
-  "private": true,
   "keywords": [
     "magpie",
     "magpie-plugin",
+    "opencode",
+    "opencode-plugin",
     "electron",
-    "desktop"
+    "desktop-widget",
+    "windows",
+    "busy-bird"
+  ],
+  "files": [
+    "src",
+    "web",
+    "plugin",
+    "assets",
+    "tools",
+    "启动挂件.bat",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20"
@@ -32,6 +45,9 @@
     "start": "electron .",
     "mock": "node tools/mock-server.mjs",
     "shot": "electron . --shot=docs\\screenshots\\bird.png --demo"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
     "electron": "^39.8.7"
