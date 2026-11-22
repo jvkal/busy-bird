@@ -3,8 +3,9 @@
   "productName": "Busy Bird",
   "version": "0.1.0",
   "description": "鸟儿飞来飞去的 magpie 桌面挂件 · A tiny desktop perch where a bird carries every magpie request.",
-  "main": "src/main.js",
+  "main": "plugin/entry.cjs",
   "exports": {
+    ".": "./plugin/entry.cjs",
     "./server": "./plugin/server.mjs"
   },
   "author": "jvkal",
